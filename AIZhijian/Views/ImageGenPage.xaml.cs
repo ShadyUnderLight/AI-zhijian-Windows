@@ -1,16 +1,60 @@
 using System.Diagnostics;
+using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Documents;
+using Microsoft.Win32;
+using AIZhijian.Models;
 
 namespace AIZhijian.Views;
 
 public partial class ImageGenPage : UserControl
 {
+    private readonly List<FileRef> _images = new();
+
     public ImageGenPage() => InitializeComponent();
 
     private string GetComboTag(ComboBox cb)
         => (cb.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? "";
+
+    private void PickImages_Click(object sender, RoutedEventArgs e)
+    {
+        if (_images.Count >= 10) { StatusText.Text = "最多10张参考图"; return; }
+
+        var dlg = new OpenFileDialog { Filter = "图片|*.png;*.jpg;*.jpeg;*.webp|所有|*.*", Multiselect = true };
+        if (dlg.ShowDialog() != true) return;
+
+        foreach (var path in dlg.FileNames.Take(10 - _images.Count))
+        {
+            var data = File.ReadAllBytes(path);
+            var mime = Path.GetExtension(path).ToLower() switch
+            {
+                ".png" => "image/png", ".jpg" or ".jpeg" => "image/jpeg",
+                ".webp" => "image/webp", _ => "image/png"
+            };
+            _images.Add(new FileRef { Data = data, Name = Path.GetFileName(path), Mime = mime });
+
+            var tb = new TextBlock { Text = Path.GetFileName(path), FontSize = 12,
+                Foreground = System.Windows.Media.Brushes.Gray, Margin = new Thickness(0, 2, 0, 0) };
+            ImagesPanel.Children.Add(tb);
+        }
+
+        UpdateImageModeState();
+    }
+
+    private void ClearImages_Click(object sender, RoutedEventArgs e)
+    {
+        _images.Clear();
+        ImagesPanel.Children.Clear();
+        UpdateImageModeState();
+    }
+
+    private void UpdateImageModeState()
+    {
+        var hasImages = _images.Count > 0;
+        ClearImagesBtn.IsEnabled = hasImages;
+        PhotoRealCheck.IsEnabled = !hasImages;
+    }
 
     private async void GenerateBtn_Click(object sender, RoutedEventArgs e)
     {
@@ -25,9 +69,13 @@ public partial class ImageGenPage : UserControl
         try
         {
             var api = Services.ApiService.Instance;
-            var result = await api.GenerateImage(prompt, GetComboTag(ChannelBox),
-                GetComboTag(AspectRatioBox), GetComboTag(ResolutionBox),
-                GetComboTag(QualityBox), PhotoRealCheck.IsChecked ?? false);
+            var result = _images.Count > 0
+                ? await api.GenerateImageToImage(prompt, GetComboTag(ChannelBox),
+                    GetComboTag(AspectRatioBox), GetComboTag(ResolutionBox),
+                    GetComboTag(QualityBox), _images)
+                : await api.GenerateImage(prompt, GetComboTag(ChannelBox),
+                    GetComboTag(AspectRatioBox), GetComboTag(ResolutionBox),
+                    GetComboTag(QualityBox), PhotoRealCheck.IsChecked ?? false);
 
             StatusText.Text = result.Success
                 ? $"任务已提交: {result.OurTaskId}"
