@@ -1,0 +1,73 @@
+<UserControl x:Class="AIZhijian.Views.WanPage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <StackPanel>
+        <TextBlock Text="🎥 Wan 视频生成" FontSize="20" FontWeight="Bold" Margin="0,0,0,16"/>
+
+        <Border Style="{StaticResource CardBorder}">
+            <StackPanel>
+                <StackPanel Margin="0,0,0,12">
+                    <TextBlock Text="模式" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                    <ComboBox x:Name="ModeBox" SelectedIndex="0" SelectionChanged="ModeBox_Changed" Width="200">
+                        <ComboBoxItem Content="图生视频" Tag="image"/>
+                        <ComboBoxItem Content="首尾帧" Tag="first_last"/>
+                    </ComboBox>
+                </StackPanel>
+
+                <TextBlock Text="提示词" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                <TextBox x:Name="PromptBox" Height="60" TextWrapping="Wrap" AcceptsReturn="True" Margin="0,0,0,12"/>
+
+                <Grid Margin="0,0,0,12">
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0" Margin="0,0,6,0">
+                        <TextBlock Text="宽度" FontWeight="SemiBold"/>
+                        <TextBox x:Name="WidthBox" Text="720"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="1" Margin="6,0">
+                        <TextBlock Text="高度" FontWeight="SemiBold"/>
+                        <TextBox x:Name="HeightBox" Text="1280"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="2" Margin="6,0,0,0">
+                        <TextBlock Text="时长(秒)" FontWeight="SemiBold"/>
+                        <TextBox x:Name="SecondsBox" Text="5"/>
+                    </StackPanel>
+                </Grid>
+
+                <CheckBox x:Name="Enable48GCheck" Content="启用48G模式" Margin="0,0,0,12"/>
+
+                <!-- Image mode picker -->
+                <StackPanel x:Name="ImagePickerPanel" Margin="0,0,0,12">
+                    <TextBlock Text="输入图片" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                    <Button Content="选择图片..." Style="{StaticResource SecondaryButton}" Width="120"
+                            Click="PickImage_Click"/>
+                    <TextBlock x:Name="ImageFileLabel" FontSize="12" Foreground="Gray" Margin="0,4,0,0"/>
+                </StackPanel>
+
+                <!-- First/Last frame picker -->
+                <StackPanel x:Name="FramePickerPanel" Margin="0,0,0,12" Visibility="Collapsed">
+                    <TextBlock Text="首帧图片" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                    <Button Content="选择首帧..." Style="{StaticResource SecondaryButton}" Width="120"
+                            Click="PickFirstFrame_Click"/>
+                    <TextBlock x:Name="FirstFrameLabel" FontSize="12" Foreground="Gray" Margin="0,4,0,4"/>
+                    <TextBlock Text="尾帧图片" FontWeight="SemiBold" Margin="0,8,0,4"/>
+                    <Button Content="选择尾帧..." Style="{StaticResource SecondaryButton}" Width="120"
+                            Click="PickLastFrame_Click"/>
+                    <TextBlock x:Name="LastFrameLabel" FontSize="12" Foreground="Gray" Margin="0,4,0,0"/>
+                </StackPanel>
+
+                <TextBlock x:Name="StatusText" TextWrapping="Wrap" Margin="0,0,0,8"/>
+
+                <Button x:Name="GenerateBtn" Content="生成视频" Style="{StaticResource PrimaryButton}"
+                        Height="36" Width="140" Click="GenerateBtn_Click"/>
+            </StackPanel>
+        </Border>
+
+        <Border x:Name="ResultPanel" Style="{StaticResource CardBorder}" Margin="0,12,0,0" Visibility="Collapsed">
+            <StackPanel>
+                <TextBlock Text="结果" FontWeight="Bold" Margin="0,0,0,8"/>
+                <TextBlock x:Name="ResultLink" Cursor="Hand" TextDecorations="Underline"
+                           Foreground="Blue" MouseLeftButtonDown="ResultLink_MouseDown"/>
+            </StackPanel>
+        </Border>
+    </StackPanel>
+</UserControl>

@@ -1,0 +1,36 @@
+<UserControl x:Class="AIZhijian.Views.TaskListPage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <StackPanel>
+        <TextBlock Text="⏳ 任务队列" FontSize="20" FontWeight="Bold" Margin="0,0,0,16"/>
+
+        <Grid Margin="0,0,0,12">
+            <StackPanel Orientation="Horizontal">
+                <Button x:Name="PauseBtn" Content="⏸ 暂停" Style="{StaticResource SecondaryButton}"
+                        Click="PauseBtn_Click" Width="80" Margin="0,0,8,0"/>
+                <Button x:Name="ClearCompletedBtn" Content="清除已完成" Style="{StaticResource SecondaryButton}"
+                        Click="ClearCompleted_Click" Margin="0,0,8,0"/>
+                <Button x:Name="ClearFailedBtn" Content="清除失败" Style="{StaticResource SecondaryButton}"
+                        Click="ClearFailed_Click" Margin="0,0,8,0"/>
+                <Button Content="全部取消" Style="{StaticResource SecondaryButton}"
+                        Click="CancelAll_Click" Foreground="{StaticResource DangerBrush}"/>
+            </StackPanel>
+        </Grid>
+
+        <TextBlock x:Name="StatsText" Foreground="{StaticResource TextSecondary}" Margin="0,0,0,8"/>
+
+        <Border Style="{StaticResource CardBorder}">
+            <ListView x:Name="TaskListView" MinHeight="200">
+                <ListView.View>
+                    <GridView>
+                        <GridViewColumn Header="类型" Width="100" DisplayMemberBinding="{Binding Kind}"/>
+                        <GridViewColumn Header="状态" Width="80" DisplayMemberBinding="{Binding Status}"/>
+                        <GridViewColumn Header="描述" Width="250" DisplayMemberBinding="{Binding Summary}"/>
+                        <GridViewColumn Header="耗时" Width="60" DisplayMemberBinding="{Binding Elapsed}"/>
+                        <GridViewColumn Header="错误" Width="200" DisplayMemberBinding="{Binding ErrorMessage}"/>
+                    </GridView>
+                </ListView.View>
+            </ListView>
+        </Border>
+    </StackPanel>
+</UserControl>

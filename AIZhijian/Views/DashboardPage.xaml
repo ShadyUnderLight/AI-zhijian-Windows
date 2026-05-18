@@ -1,0 +1,52 @@
+<UserControl x:Class="AIZhijian.Views.DashboardPage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <StackPanel>
+        <TextBlock Text="📊 仪表盘" FontSize="20" FontWeight="Bold" Margin="0,0,0,16"/>
+
+        <Border Style="{StaticResource CardBorder}" Margin="0,0,0,12">
+            <StackPanel>
+                <TextBlock Text="欢迎使用 AI 智剪" FontSize="16" FontWeight="SemiBold"/>
+                <TextBlock Text="集图片生成、视频生成于一体的 AI 创意工具" Foreground="{StaticResource TextSecondary}" Margin="0,4,0,0"/>
+            </StackPanel>
+        </Border>
+
+        <Grid Margin="0,8,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <Border Grid.Column="0" Style="{StaticResource CardBorder}" Margin="0,0,6,0">
+                <StackPanel>
+                    <TextBlock Text="🖼️ 图片生成" FontWeight="SemiBold" FontSize="14"/>
+                    <TextBlock Text="GPT-Image-2 文生图 / Banana 图生图" Foreground="{StaticResource TextSecondary}" FontSize="12" Margin="0,4,0,0"/>
+                    <StackPanel Margin="0,8,0,0">
+                        <TextBlock FontSize="12">• GPT-Image-2: 文生图/图生图</TextBlock>
+                        <TextBlock FontSize="12">• Banana: Gemini 图生图/文生图</TextBlock>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <Border Grid.Column="1" Style="{StaticResource CardBorder}" Margin="6,0,0,0">
+                <StackPanel>
+                    <TextBlock Text="🎬 视频生成" FontWeight="SemiBold" FontSize="14"/>
+                    <TextBlock Text="Seedance / Wan / Veo / Grok" Foreground="{StaticResource TextSecondary}" FontSize="12" Margin="0,4,0,0"/>
+                    <StackPanel Margin="0,8,0,0">
+                        <TextBlock FontSize="12">• Seedance: 参考图/首尾帧视频</TextBlock>
+                        <TextBlock FontSize="12">• Wan: 图生视频</TextBlock>
+                        <TextBlock FontSize="12">• Veo: 5种模式 × 3种模型</TextBlock>
+                        <TextBlock FontSize="12">• Grok: 5种模式, 6-30s</TextBlock>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+        </Grid>
+
+        <Border Style="{StaticResource CardBorder}" Margin="0,12,0,0">
+            <StackPanel>
+                <TextBlock Text="API 服务器" FontWeight="SemiBold" FontSize="14"/>
+                <TextBlock x:Name="ServerInfo" Foreground="{StaticResource TextSecondary}" FontSize="12" Margin="0,4,0,0"/>
+            </StackPanel>
+        </Border>
+    </StackPanel>
+</UserControl>
