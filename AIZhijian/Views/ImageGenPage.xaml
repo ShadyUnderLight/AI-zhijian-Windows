@@ -9,6 +9,13 @@
                 <TextBlock Text="提示词" FontWeight="SemiBold" Margin="0,0,0,4"/>
                 <TextBox x:Name="PromptBox" Height="80" TextWrapping="Wrap" AcceptsReturn="True" Margin="0,0,0,12"/>
 
+                <StackPanel Margin="0,0,0,12">
+                    <TextBlock Text="参考图片 (最多10张，可选)" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                    <Button Content="选择图片..." Style="{StaticResource SecondaryButton}" Width="120"
+                            Click="PickImages_Click"/>
+                    <StackPanel x:Name="ImagesPanel" Margin="0,6,0,0"/>
+                </StackPanel>
+
                 <Grid Margin="0,0,0,12">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/><ColumnDefinition Width="*"/>
