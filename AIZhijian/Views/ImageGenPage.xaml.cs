@@ -38,6 +38,22 @@ public partial class ImageGenPage : UserControl
                 Foreground = System.Windows.Media.Brushes.Gray, Margin = new Thickness(0, 2, 0, 0) };
             ImagesPanel.Children.Add(tb);
         }
+
+        UpdateImageModeState();
+    }
+
+    private void ClearImages_Click(object sender, RoutedEventArgs e)
+    {
+        _images.Clear();
+        ImagesPanel.Children.Clear();
+        UpdateImageModeState();
+    }
+
+    private void UpdateImageModeState()
+    {
+        var hasImages = _images.Count > 0;
+        ClearImagesBtn.IsEnabled = hasImages;
+        PhotoRealCheck.IsEnabled = !hasImages;
     }
 
     private async void GenerateBtn_Click(object sender, RoutedEventArgs e)
