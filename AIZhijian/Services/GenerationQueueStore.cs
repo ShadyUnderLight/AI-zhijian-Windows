@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using AIZhijian.Models;
 
 namespace AIZhijian.Services;
@@ -105,6 +106,100 @@ public class GenerationQueueStore
         StartProcessing();
     }
 
+    public void Restore()
+    {
+        var snapshot = LoadSnapshot();
+        if (snapshot == null || snapshot.Count == 0) return;
+
+        foreach (var s in snapshot)
+        {
+            if (!Enum.TryParse<GenerationJobKind>(s.Kind, out var kind)) continue;
+            if (!Enum.TryParse<GenerationQueueStatus>(s.Status, out var status)) continue;
+            if (status != GenerationQueueStatus.Polling) continue;
+            if (string.IsNullOrEmpty(s.TaskId)) continue;
+
+            var item = new GenerationQueueItem
+            {
+                Id = s.Id,
+                Kind = kind,
+                Status = status,
+                TaskId = s.TaskId,
+                ResultUrls = s.ResultUrls,
+                VideoUrl = s.VideoUrl,
+                ErrorMessage = s.ErrorMessage,
+                CreatedAt = s.CreatedAt,
+                StartedAt = s.StartedAt,
+                CompletedAt = s.CompletedAt,
+                RetryCount = s.RetryCount,
+                ConsecutivePollFailures = s.ConsecutivePollFailures,
+                PriceUsd = s.PriceUsd,
+                PollDetail = s.PollDetail,
+                StatusHistory = s.StatusHistory,
+                BatchId = s.BatchId != null && Guid.TryParse(s.BatchId, out var batchId) ? batchId : null,
+                BatchName = s.BatchName,
+                RestoredFromPersistence = true,
+                RestoredSummary = s.SummaryText,
+            };
+            _items.Add(item);
+        }
+
+        if (_items.Count > 0) StartProcessing();
+        NotifyState();
+    }
+
+    private static readonly JsonSerializerOptions SnapshotJsonOptions = new()
+    {
+        WriteIndented = false,
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+    };
+
+    private void SaveSnapshot()
+    {
+        try
+        {
+            var active = _items
+                .Where(i => i.Status == GenerationQueueStatus.Polling && i.TaskId != null)
+                .Select(i => new QueueItemSnapshot
+                {
+                    Id = i.Id,
+                    Kind = i.Kind.ToString(),
+                    Status = i.Status.ToString(),
+                    TaskId = i.TaskId,
+                    ResultUrls = i.ResultUrls,
+                    VideoUrl = i.VideoUrl,
+                    ErrorMessage = i.ErrorMessage,
+                    CreatedAt = i.CreatedAt,
+                    StartedAt = i.StartedAt,
+                    CompletedAt = i.CompletedAt,
+                    RetryCount = i.RetryCount,
+                    SummaryText = i.Summary,
+                    ConsecutivePollFailures = i.ConsecutivePollFailures,
+                    PriceUsd = i.PriceUsd,
+                    PollDetail = i.PollDetail,
+                    StatusHistory = i.StatusHistory,
+                    BatchId = i.BatchId?.ToString(),
+                    BatchName = i.BatchName,
+                })
+                .ToList();
+
+            var json = JsonSerializer.Serialize(active, SnapshotJsonOptions);
+            Properties.Settings.Default.QueueSnapshot = json;
+            Properties.Settings.Default.Save();
+        }
+        catch { }
+    }
+
+    private static List<QueueItemSnapshot>? LoadSnapshot()
+    {
+        try
+        {
+            var json = Properties.Settings.Default.QueueSnapshot;
+            if (string.IsNullOrEmpty(json)) return null;
+            return JsonSerializer.Deserialize<List<QueueItemSnapshot>>(json);
+        }
+        catch { return null; }
+    }
+
     public void CancelAndClearAll()
     {
         _processCts?.Cancel();
@@ -125,7 +220,11 @@ public class GenerationQueueStore
         StartProcessing();
     }
 
-    private void NotifyState() => StateChanged?.Invoke();
+    private void NotifyState()
+    {
+        StateChanged?.Invoke();
+        SaveSnapshot();
+    }
 
     private void StartProcessing()
     {
@@ -177,6 +276,13 @@ public class GenerationQueueStore
     {
         try
         {
+            if (item.Params == null)
+            {
+                item.Status = GenerationQueueStatus.Failed;
+                item.ErrorMessage = "缺少任务参数";
+                NotifyState();
+                return;
+            }
             var result = await _executor.Submit(item.Params);
             var idx = _items.IndexOf(item);
             if (idx < 0 || item.Status != GenerationQueueStatus.Submitting) return;

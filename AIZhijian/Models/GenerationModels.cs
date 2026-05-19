@@ -152,7 +152,7 @@ public class GenerationQueueItem
     public int RetryCount { get; set; }
     public Guid? BatchId { get; set; }
     public string? BatchName { get; set; }
-    public required JobParams Params { get; set; }
+    public JobParams? Params { get; set; }
     public byte[]? BananaResultImageData { get; set; }
     public int ConsecutivePollFailures { get; set; }
     public string? LastPollError { get; set; }
@@ -162,20 +162,25 @@ public class GenerationQueueItem
     public List<StatusEvent> StatusHistory { get; set; } = new();
     public bool IsActive => Status == GenerationQueueStatus.Submitting || Status == GenerationQueueStatus.Polling;
     public string Elapsed => $"{(DateTime.Now - (StartedAt ?? CreatedAt)).TotalSeconds:F0}s";
+    public string? RestoredSummary { get; set; }
     public string Summary
     {
         get
         {
-            return Params switch
+            if (Params != null)
             {
-                GptImageJobParams p => p.Prompt,
-                BananaJobParams p => p.Prompt,
-                SeedanceJobParams p => p.Prompt,
-                WanJobParams p => p.Prompt,
-                VeoJobParams p => p.Prompt,
-                GrokJobParams p => p.Prompt,
-                _ => ""
-            };
+                return Params switch
+                {
+                    GptImageJobParams p => p.Prompt,
+                    BananaJobParams p => p.Prompt,
+                    SeedanceJobParams p => p.Prompt,
+                    WanJobParams p => p.Prompt,
+                    VeoJobParams p => p.Prompt,
+                    GrokJobParams p => p.Prompt,
+                    _ => ""
+                };
+            }
+            return RestoredSummary ?? "";
         }
     }
 }

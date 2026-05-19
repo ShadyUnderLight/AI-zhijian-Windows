@@ -39,4 +39,8 @@ internal sealed class Settings : ApplicationSettingsBase
     [UserScopedSetting]
     [DefaultSettingValue("3")]
     public int ConcurrencyLimit { get => (int)this["ConcurrencyLimit"]; set => this["ConcurrencyLimit"] = value; }
+
+    [UserScopedSetting]
+    [DefaultSettingValue("")]
+    public string QueueSnapshot { get => (string)this["QueueSnapshot"]; set => this["QueueSnapshot"] = value; }
 }
