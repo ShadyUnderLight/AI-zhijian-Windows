@@ -98,12 +98,46 @@ public class GenerationQueueStore
         NotifyState();
     }
 
+    // ── Paused Batches ──
+
+    private readonly HashSet<Guid> _pausedBatches = new();
+
+    public IReadOnlySet<Guid> PausedBatches => _pausedBatches;
+
     public void PauseQueue() => IsPaused = true;
 
     public void ResumeQueue()
     {
         IsPaused = false;
         StartProcessing();
+    }
+
+    public void PauseBatch(Guid batchId) { _pausedBatches.Add(batchId); NotifyState(); }
+
+    public void ResumeBatch(Guid batchId) { _pausedBatches.Remove(batchId); NotifyState(); }
+
+    public void RenameBatch(Guid batchId, string name)
+    {
+        foreach (var item in _items.Where(i => i.BatchId == batchId))
+            item.BatchName = name;
+        NotifyState();
+    }
+
+    public void CancelBatch(Guid batchId)
+    {
+        foreach (var item in _items.Where(i => i.BatchId == batchId))
+        {
+            if (item.Status is GenerationQueueStatus.Pending or GenerationQueueStatus.Submitting or GenerationQueueStatus.Polling)
+                item.Status = GenerationQueueStatus.Cancelled;
+        }
+        NotifyState();
+    }
+
+    public void ClearBatch(Guid batchId)
+    {
+        _items.RemoveAll(i => i.BatchId == batchId
+            && i.Status is GenerationQueueStatus.Succeeded or GenerationQueueStatus.Failed or GenerationQueueStatus.Cancelled);
+        NotifyState();
     }
 
     public void Restore()
@@ -264,7 +298,8 @@ public class GenerationQueueStore
         var capacity = Math.Max(0, ConcurrencyLimit - activeCount);
         if (capacity <= 0) return;
 
-        var pending = _items.Where(i => i.Status == GenerationQueueStatus.Pending).Take(capacity).ToList();
+        var pending = _items.Where(i => i.Status == GenerationQueueStatus.Pending
+            && (i.BatchId == null || !_pausedBatches.Contains(i.BatchId.Value))).Take(capacity).ToList();
         foreach (var item in pending) item.Status = GenerationQueueStatus.Submitting;
         NotifyState();
 
