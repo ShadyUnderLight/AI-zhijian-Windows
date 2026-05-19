@@ -72,6 +72,77 @@
                     <StackPanel x:Name="AssetsPanel" Margin="0,4,0,0"/>
                 </StackPanel>
 
+                <Border Style="{StaticResource CardBorder}" Margin="0,0,0,12">
+                    <StackPanel>
+                        <TextBlock Text="虚拟人素材库" FontWeight="SemiBold" Margin="0,0,0,8"/>
+                        <TextBlock x:Name="AssetConfigText" Text="素材库未加载" FontSize="12"
+                                   Foreground="{StaticResource TextSecondary}" Margin="0,0,0,8"/>
+                        <ProgressBar x:Name="AssetLoadingBar" Height="4" IsIndeterminate="True"
+                                     Visibility="Collapsed" Margin="0,0,0,8"/>
+
+                        <Grid Margin="0,0,0,8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <ComboBox x:Name="AssetGroupBox" Grid.Column="0" DisplayMemberPath="DisplayName"
+                                      SelectedValuePath="Id" Margin="0,0,8,0"
+                                      SelectionChanged="AssetGroupBox_SelectionChanged"/>
+                            <Button x:Name="RefreshGroupsBtn" Grid.Column="1" Content="刷新" Width="60"
+                                    Style="{StaticResource SecondaryButton}" Click="RefreshGroups_Click"/>
+                        </Grid>
+
+                        <Grid Margin="0,0,0,8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBox x:Name="NewGroupBox" Grid.Column="0" Text="" Margin="0,0,8,0"/>
+                            <Button x:Name="CreateGroupBtn" Grid.Column="1" Content="新建组" Width="60"
+                                    Style="{StaticResource SecondaryButton}" Click="CreateGroup_Click"/>
+                        </Grid>
+
+                        <Grid Margin="0,0,0,8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBox x:Name="ImportNameBox" Grid.Column="0" Text="" Margin="0,0,8,0"/>
+                            <Button x:Name="ImportAssetBtn" Grid.Column="1" Content="导入素材" Width="80"
+                                    Style="{StaticResource SecondaryButton}" Click="ImportAsset_Click"/>
+                        </Grid>
+
+                        <TextBlock x:Name="AssetErrorText" FontSize="12" Foreground="{StaticResource DangerBrush}"
+                                   Visibility="Collapsed" Margin="0,0,0,8"/>
+
+                        <ItemsControl x:Name="AssetItemsControl" Visibility="Collapsed" Margin="0,0,0,4">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <WrapPanel Orientation="Horizontal"/>
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Background="#FAFAFA" BorderBrush="{StaticResource BorderBrush}"
+                                            BorderThickness="1" CornerRadius="4" Padding="8" Margin="0,0,8,8"
+                                            Width="140">
+                                        <StackPanel>
+                                            <TextBlock Text="{Binding DisplayName}" FontSize="12"
+                                                       TextWrapping="Wrap" Margin="0,0,0,4"/>
+                                            <TextBlock Text="{Binding LastStatus}" FontSize="11"
+                                                       Foreground="{StaticResource TextSecondary}" Margin="0,0,0,4"/>
+                                            <Button Content="加入参考" FontSize="11" Height="24"
+                                                    Style="{StaticResource SecondaryButton}"
+                                                    Tag="{Binding}"
+                                                    Click="AddVirtualAsset_Click"/>
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </Border>
+
                 <TextBlock x:Name="StatusText" TextWrapping="Wrap" Margin="0,0,0,8"/>
 
                 <Button x:Name="GenerateBtn" Content="生成视频" Style="{StaticResource PrimaryButton}"
