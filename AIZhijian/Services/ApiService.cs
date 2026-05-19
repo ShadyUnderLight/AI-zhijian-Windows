@@ -48,6 +48,7 @@ public class ApiService
         if (_queueStore == null)
         {
             _queueStore = new GenerationQueueStore(this);
+            _queueStore.Restore();
         }
         return _queueStore;
     }
