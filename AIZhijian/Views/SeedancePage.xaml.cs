@@ -13,10 +13,10 @@ public partial class SeedancePage : UserControl
 {
     private readonly List<SeedanceAsset> _assets = new();
     private List<SeedanceVirtualAssetGroup> _assetGroups = new();
-    private List<SeedanceVirtualAssetItem> _assetItems = new();
     private bool _assetConfigured;
-    private int? _selectedAssetGroupId;
     private int _assetLoadingCount;
+    private int? _selectedAssetGroupId;
+    private int? _loadingAssetGroupId;
     private string? _lastVideoUrl;
 
     public SeedancePage()
@@ -121,17 +121,17 @@ public partial class SeedancePage : UserControl
 
     private async Task LoadVirtualAssetsAsync()
     {
+        AssetErrorText.Visibility = Visibility.Collapsed;
         BeginAssetLoading();
         try
         {
             var config = await ApiService.Instance.GetSeedanceVirtualAssetConfig();
             _assetConfigured = config.AssetApiConfigured == true;
             AssetConfigText.Text = GetAssetConfigMessage(config);
-            AssetConfigText.Visibility = Visibility.Visible;
             if (!_assetConfigured)
             {
                 _assetGroups.Clear();
-                _assetItems.Clear();
+                _selectedAssetGroupId = null;
                 AssetGroupBox.ItemsSource = null;
                 AssetItemsControl.Visibility = Visibility.Collapsed;
                 return;
@@ -141,8 +141,6 @@ public partial class SeedancePage : UserControl
             {
                 _assetGroups = groupsResponse.Items ?? new();
                 AssetGroupBox.ItemsSource = _assetGroups;
-                AssetGroupBox.DisplayMemberPath = "DisplayName";
-                AssetGroupBox.SelectedValuePath = "Id";
             }
         }
         catch (Exception ex)
@@ -157,15 +155,18 @@ public partial class SeedancePage : UserControl
 
     private async Task LoadVirtualAssetItemsAsync(int groupId)
     {
+        AssetErrorText.Visibility = Visibility.Collapsed;
+        _loadingAssetGroupId = groupId;
         BeginAssetLoading();
         try
         {
             var response = await ApiService.Instance.GetSeedanceVirtualAssetItems(groupId);
+            if (_loadingAssetGroupId != groupId) return;
             if (response.Success)
             {
-                _assetItems = response.Items ?? new();
-                AssetItemsControl.ItemsSource = _assetItems;
-                AssetItemsControl.Visibility = _assetItems.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+                var items = response.Items ?? new();
+                AssetItemsControl.ItemsSource = items;
+                AssetItemsControl.Visibility = items.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
             }
             else
             {
@@ -174,10 +175,13 @@ public partial class SeedancePage : UserControl
         }
         catch (Exception ex)
         {
-            ShowAssetError($"加载素材列表失败: {ex.Message}");
+            if (_loadingAssetGroupId == groupId)
+                ShowAssetError($"加载素材列表失败: {ex.Message}");
         }
         finally
         {
+            if (_loadingAssetGroupId == groupId)
+                _loadingAssetGroupId = null;
             EndAssetLoading();
         }
     }
@@ -188,6 +192,12 @@ public partial class SeedancePage : UserControl
         {
             _selectedAssetGroupId = groupId;
             _ = LoadVirtualAssetItemsAsync(groupId);
+        }
+        else
+        {
+            _selectedAssetGroupId = null;
+            AssetItemsControl.ItemsSource = null;
+            AssetItemsControl.Visibility = Visibility.Collapsed;
         }
     }
 
@@ -200,6 +210,7 @@ public partial class SeedancePage : UserControl
     {
         var name = NewGroupBox.Text.Trim();
         if (string.IsNullOrEmpty(name)) return;
+        AssetErrorText.Visibility = Visibility.Collapsed;
         BeginAssetLoading();
         try
         {
@@ -209,11 +220,7 @@ public partial class SeedancePage : UserControl
                 NewGroupBox.Text = "";
                 await LoadVirtualAssetsAsync();
                 if (response.Id.HasValue)
-                {
-                    _selectedAssetGroupId = response.Id.Value;
                     AssetGroupBox.SelectedValue = response.Id.Value;
-                    await LoadVirtualAssetItemsAsync(response.Id.Value);
-                }
             }
             else
             {
@@ -235,6 +242,7 @@ public partial class SeedancePage : UserControl
         if (!_selectedAssetGroupId.HasValue) { ShowAssetError("请先选择素材组"); return; }
         var name = ImportNameBox.Text.Trim();
         if (string.IsNullOrEmpty(name)) { ShowAssetError("请输入素材名称"); return; }
+        AssetErrorText.Visibility = Visibility.Collapsed;
 
         var dlg = new OpenFileDialog { Filter = "图片文件|*.png;*.jpg;*.jpeg|所有|*.*" };
         if (dlg.ShowDialog() != true) return;
@@ -270,28 +278,27 @@ public partial class SeedancePage : UserControl
         }
     }
 
-    private async void AddVirtualAsset_Click(object sender, RoutedEventArgs e)
+    private void AddVirtualAsset_Click(object sender, RoutedEventArgs e)
     {
         if (sender is not System.Windows.Controls.Button btn || btn.Tag is not SeedanceVirtualAssetItem item)
             return;
 
         if (!item.IsActive)
         {
-            // Refresh the item if not active
-            try
-            {
-                await ApiService.Instance.RefreshSeedanceVirtualAssetItem(item.Id);
-                if (_selectedAssetGroupId.HasValue)
-                    await LoadVirtualAssetItemsAsync(_selectedAssetGroupId.Value);
-            }
-            catch { }
+            ShowAssetError("素材非 Active 状态，请先刷新素材组");
             return;
         }
 
         var assetUri = item.AssetUri ?? item.ArkAssetId;
         if (string.IsNullOrEmpty(assetUri))
         {
-            ShowAssetError("素材无可用 URI，请尝试刷新");
+            ShowAssetError("素材无可用 URI");
+            return;
+        }
+
+        if (_assets.Any(a => a.DataUrl == assetUri))
+        {
+            ShowAssetError("该素材已在参考列表中");
             return;
         }
 
@@ -311,6 +318,7 @@ public partial class SeedancePage : UserControl
             Foreground = System.Windows.Media.Brushes.Gray
         };
         AssetsPanel.Children.Add(tb);
+        AssetErrorText.Visibility = Visibility.Collapsed;
     }
 
     private void BeginAssetLoading()
