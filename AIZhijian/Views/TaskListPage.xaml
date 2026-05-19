@@ -19,18 +19,66 @@
 
         <TextBlock x:Name="StatsText" Foreground="{StaticResource TextSecondary}" Margin="0,0,0,8"/>
 
-        <Border Style="{StaticResource CardBorder}">
-            <ListView x:Name="TaskListView" MinHeight="200">
-                <ListView.View>
-                    <GridView>
-                        <GridViewColumn Header="类型" Width="100" DisplayMemberBinding="{Binding Kind}"/>
-                        <GridViewColumn Header="状态" Width="80" DisplayMemberBinding="{Binding Status}"/>
-                        <GridViewColumn Header="描述" Width="250" DisplayMemberBinding="{Binding Summary}"/>
-                        <GridViewColumn Header="耗时" Width="60" DisplayMemberBinding="{Binding Elapsed}"/>
-                        <GridViewColumn Header="错误" Width="200" DisplayMemberBinding="{Binding ErrorMessage}"/>
-                    </GridView>
-                </ListView.View>
-            </ListView>
-        </Border>
+        <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="600">
+            <ItemsControl x:Name="BatchContainer">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Border Style="{StaticResource CardBorder}" Margin="0,0,0,8" Padding="12">
+                            <StackPanel>
+                                <Grid Margin="0,0,0,8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="{Binding DisplayName}" FontWeight="Bold" FontSize="14" VerticalAlignment="Center"/>
+                                    <TextBlock Grid.Column="1" Text="{Binding ItemCountText}" Foreground="{StaticResource TextSecondary}" FontSize="12" VerticalAlignment="Center" Margin="8,0,0,0"/>
+                                    <StackPanel Grid.Column="2" Orientation="Horizontal"
+                                                Visibility="{Binding BatchId, Converter={StaticResource NullToVisibility}}">
+                                        <Button Content="{Binding PauseBtnText}" Style="{StaticResource SecondaryButton}"
+                                                Click="BatchPauseResume_Click" Tag="{Binding BatchId}"
+                                                Width="70" Margin="0,0,4,0" FontSize="12"/>
+                                        <Button Content="✏ 重命名" Style="{StaticResource SecondaryButton}"
+                                                Click="BatchRename_Click" Tag="{Binding BatchId}"
+                                                FontSize="12" Margin="0,0,4,0"/>
+                                        <Button Content="✕ 取消" Style="{StaticResource SecondaryButton}"
+                                                Click="BatchCancel_Click" Tag="{Binding BatchId}"
+                                                FontSize="12" Margin="0,0,4,0" Foreground="{StaticResource DangerBrush}"/>
+                                        <Button Content="清除" Style="{StaticResource SecondaryButton}"
+                                                Click="BatchClear_Click" Tag="{Binding BatchId}"
+                                                FontSize="12"/>
+                                    </StackPanel>
+                                </Grid>
+                                <ItemsControl ItemsSource="{Binding Items}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Grid Margin="0,2,0,2">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="100"/>
+                                                    <ColumnDefinition Width="80"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="60"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0" Text="{Binding Kind}" FontSize="12" VerticalAlignment="Center"/>
+                                                <TextBlock Grid.Column="1" Text="{Binding Status}" FontSize="12" VerticalAlignment="Center"/>
+                                                <TextBlock Grid.Column="2" Text="{Binding Summary}" FontSize="12" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Margin="0,0,8,0"/>
+                                                <TextBlock Grid.Column="3" Text="{Binding Elapsed}" FontSize="12" Foreground="{StaticResource TextSecondary}" VerticalAlignment="Center"/>
+                                                <TextBlock Grid.Column="4" Text="{Binding ErrorMessage}" FontSize="12" Foreground="{StaticResource DangerBrush}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="200" Margin="0,0,8,0"/>
+                                                <Button Grid.Column="5" Content="重试" FontSize="12"
+                                                        Visibility="{Binding ShowRetry, Converter={StaticResource BoolToVisibility}}"
+                                                        Style="{StaticResource SecondaryButton}" Padding="8,2"
+                                                        Click="RetryItem_Click" Tag="{Binding Id}"/>
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
     </StackPanel>
 </UserControl>

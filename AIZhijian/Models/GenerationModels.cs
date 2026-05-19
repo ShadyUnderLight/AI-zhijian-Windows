@@ -161,6 +161,7 @@ public class GenerationQueueItem
     public string? PollDetail { get; set; }
     public List<StatusEvent> StatusHistory { get; set; } = new();
     public bool IsActive => Status == GenerationQueueStatus.Submitting || Status == GenerationQueueStatus.Polling;
+    public bool ShowRetry => Status == GenerationQueueStatus.Failed;
     public string Elapsed => $"{(DateTime.Now - (StartedAt ?? CreatedAt)).TotalSeconds:F0}s";
     public string? RestoredSummary { get; set; }
     public string Summary
