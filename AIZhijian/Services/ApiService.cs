@@ -265,6 +265,27 @@ public class ApiService
     public async Task<TaskPollResponse> PollSeedanceTask(string taskId)
         => await GetJsonAsync<TaskPollResponse>($"/api/seedance20/poll?ourTaskId={Uri.EscapeDataString(taskId)}");
 
+    public async Task<SeedanceVirtualAssetConfigResponse> GetSeedanceVirtualAssetConfig()
+        => await GetJsonAsync<SeedanceVirtualAssetConfigResponse>("/api/seedance20/virtual-assets/config");
+
+    public async Task<SeedanceVirtualAssetGroupListResponse> GetSeedanceVirtualAssetGroups()
+        => await GetJsonAsync<SeedanceVirtualAssetGroupListResponse>("/api/seedance20/virtual-assets/groups");
+
+    public async Task<SeedanceVirtualAssetMutationResponse> CreateSeedanceVirtualAssetGroup(string displayName)
+        => await PostJsonAsync<SeedanceVirtualAssetMutationResponse>("/api/seedance20/virtual-assets/groups", new { displayName, description = "" });
+
+    public async Task<SeedanceVirtualAssetItemListResponse> GetSeedanceVirtualAssetItems(int groupId)
+        => await GetJsonAsync<SeedanceVirtualAssetItemListResponse>($"/api/seedance20/virtual-assets/groups/{groupId}/items");
+
+    public async Task<SeedanceVirtualAssetMutationResponse> ImportSeedanceVirtualAssetImage(int groupId, string displayName, FileRef image)
+    {
+        var dataUrl = $"data:{image.Mime};base64,{Convert.ToBase64String(image.Data)}";
+        return await PostJsonAsync<SeedanceVirtualAssetMutationResponse>($"/api/seedance20/virtual-assets/groups/{groupId}/import-image", new { displayName, dataUrl });
+    }
+
+    public async Task<SeedanceVirtualAssetMutationResponse> RefreshSeedanceVirtualAssetItem(int localId)
+        => await PostJsonAsync<SeedanceVirtualAssetMutationResponse>($"/api/seedance20/virtual-assets/items/{localId}/refresh", new { });
+
     // ── Wan ──
 
     public async Task<TaskSubmitResponse> GenerateWanVideo(byte[] imageData, string fileName, string mimeType,
