@@ -23,6 +23,8 @@
                     Height="36" Click="LoginButton_Click"/>
             <TextBlock x:Name="LoadingText" Text="正在登录..." Foreground="{StaticResource TextSecondary}"
                        HorizontalAlignment="Center" Margin="0,8,0,0" Visibility="Collapsed"/>
+            <TextBlock x:Name="HealthText" Text="" HorizontalAlignment="Center" FontSize="12"
+                       Margin="0,12,0,0" Visibility="Visible"/>
         </StackPanel>
     </Border>
 </UserControl>
