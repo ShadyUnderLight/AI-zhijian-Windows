@@ -6,6 +6,25 @@
 
         <Border Style="{StaticResource CardBorder}">
             <StackPanel>
+                <Border Background="#F9F9F9" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
+                        CornerRadius="4" Padding="8" Margin="0,0,0,12">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <ComboBox x:Name="PresetBox" Grid.Column="0" DisplayMemberPath="Name"
+                                  SelectedValuePath="Id" Margin="0,0,8,0"
+                                  SelectionChanged="PresetBox_SelectionChanged"/>
+                        <Button x:Name="SavePresetBtn" Grid.Column="1" Content="保存预设"
+                                Style="{StaticResource SecondaryButton}" Width="80" Margin="0,0,6,0"
+                                Click="SavePreset_Click"/>
+                        <Button x:Name="DeletePresetBtn" Grid.Column="2" Content="删除"
+                                Style="{StaticResource SecondaryButton}" Width="60"
+                                Click="DeletePreset_Click" IsEnabled="False"/>
+                    </Grid>
+                </Border>
                 <StackPanel Margin="0,0,0,12">
                     <TextBlock Text="模式" FontWeight="SemiBold" Margin="0,0,0,4"/>
                     <ComboBox x:Name="ModeBox" SelectedIndex="0" SelectionChanged="ModeBox_Changed" Width="200">

@@ -4,6 +4,7 @@ using System.Windows.Controls;
 using System.Windows.Media.Imaging;
 using Microsoft.Win32;
 using AIZhijian.Models;
+using AIZhijian.Services;
 
 namespace AIZhijian.Views;
 
@@ -11,7 +12,11 @@ public partial class BananaPage : UserControl
 {
     private readonly List<FileRef> _images = new();
 
-    public BananaPage() => InitializeComponent();
+    public BananaPage()
+    {
+        InitializeComponent();
+        Loaded += (_, _) => RefreshPresetList();
+    }
 
     private void PickImages_Click(object sender, RoutedEventArgs e)
     {
@@ -34,6 +39,82 @@ public partial class BananaPage : UserControl
                 Foreground = System.Windows.Media.Brushes.Gray, Margin = new Thickness(0, 2, 0, 0) };
             ImagesPanel.Children.Add(tb);
         }
+    }
+
+    private void RefreshPresetList()
+    {
+        var presets = PresetStore.GetPresets(PresetKind.Banana);
+        PresetBox.ItemsSource = presets;
+        PresetBox.SelectedIndex = -1;
+        DeletePresetBtn.IsEnabled = false;
+    }
+
+    private void PresetBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (PresetBox.SelectedValue is not string id) { DeletePresetBtn.IsEnabled = false; return; }
+        DeletePresetBtn.IsEnabled = true;
+        var preset = PresetStore.GetPreset(id, PresetKind.Banana);
+        if (preset == null) return;
+
+        try
+        {
+            var p = System.Text.Json.JsonSerializer.Deserialize<BananaJobParams>(preset.ParamsJson);
+            if (p == null) return;
+            PromptBox.Text = p.Prompt;
+            SetComboByTag(ProviderBox, p.Provider);
+        }
+        catch { StatusText.Text = "加载预设失败"; }
+    }
+
+    private static void SetComboByTag(ComboBox cb, string tag)
+    {
+        foreach (ComboBoxItem item in cb.Items)
+            if (item.Tag?.ToString() == tag) { cb.SelectedItem = item; return; }
+    }
+
+    private void SavePreset_Click(object sender, RoutedEventArgs e)
+    {
+        var dlg = new TextInputDialog("预设名称", "请输入预设名称:");
+        if (dlg.ShowDialog() != true || string.IsNullOrWhiteSpace(dlg.Answer)) return;
+
+        var p = new BananaJobParams
+        {
+            Prompt = PromptBox.Text.Trim(),
+            Provider = (ProviderBox.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? "third_party"
+        };
+
+        var name = dlg.Answer.Trim();
+        var existing = PresetStore.FindByName(name, PresetKind.Banana);
+        if (existing != null)
+        {
+            var overwrite = MessageBox.Show($"已存在名为 \"{name}\" 的预设，是否覆盖？", "预设已存在",
+                MessageBoxButton.YesNo, MessageBoxImage.Question);
+            if (overwrite != MessageBoxResult.Yes) return;
+        }
+
+        var preset = new Preset
+        {
+            Name = name,
+            Kind = PresetKind.Banana,
+            ParamsJson = System.Text.Json.JsonSerializer.Serialize(p)
+        };
+        PresetStore.SavePreset(preset);
+        RefreshPresetList();
+        PresetBox.SelectedValue = preset.Id;
+        StatusText.Text = $"预设 \"{preset.Name}\" 已保存";
+    }
+
+    private void DeletePreset_Click(object sender, RoutedEventArgs e)
+    {
+        if (PresetBox.SelectedValue is not string id) return;
+        var preset = PresetStore.GetPreset(id, PresetKind.Banana);
+        if (preset == null) return;
+        var result = MessageBox.Show($"确定删除预设 \"{preset.Name}\"?", "删除预设",
+            MessageBoxButton.YesNo, MessageBoxImage.Warning);
+        if (result != MessageBoxResult.Yes) return;
+        PresetStore.DeletePreset(id, PresetKind.Banana);
+        RefreshPresetList();
+        StatusText.Text = $"预设 \"{preset.Name}\" 已删除";
     }
 
     private async void GenerateBtn_Click(object sender, RoutedEventArgs e)

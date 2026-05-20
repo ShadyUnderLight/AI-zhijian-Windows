@@ -4,7 +4,9 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using Microsoft.Win32;
+using AIZhijian.Models;
 using AIZhijian.Services;
+using System.Text.Json;
 
 namespace AIZhijian.Views;
 
@@ -15,7 +17,11 @@ public partial class GrokPage : UserControl
     private string? _videoName, _videoMime;
     private string? _lastVideoUrl;
 
-    public GrokPage() => InitializeComponent();
+    public GrokPage()
+    {
+        InitializeComponent();
+        Loaded += (_, _) => RefreshPresetList();
+    }
 
     private string GetTag(ComboBox cb) => (cb.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? "";
 
@@ -37,6 +43,90 @@ public partial class GrokPage : UserControl
 
         FilesList.Children.Add(new TextBlock { Text = Path.GetFileName(dlg.FileName), FontSize = 12,
             Foreground = System.Windows.Media.Brushes.Gray });
+    }
+
+    private void RefreshPresetList()
+    {
+        var presets = PresetStore.GetPresets(PresetKind.Grok);
+        PresetBox.ItemsSource = presets;
+        PresetBox.SelectedIndex = -1;
+        DeletePresetBtn.IsEnabled = false;
+    }
+
+    private void PresetBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (PresetBox.SelectedValue is not string id) { DeletePresetBtn.IsEnabled = false; return; }
+        DeletePresetBtn.IsEnabled = true;
+        var preset = PresetStore.GetPreset(id, PresetKind.Grok);
+        if (preset == null) return;
+
+        try
+        {
+            var p = JsonSerializer.Deserialize<GrokJobParams>(preset.ParamsJson);
+            if (p == null) return;
+            PromptBox.Text = p.Prompt;
+            SetComboByTag(ChannelBox, p.Channel);
+            SetComboByTag(ModeBox, p.Mode);
+            SetComboByTag(AspectRatioBox, p.AspectRatio);
+            SetComboByTag(ResolutionBox, p.Resolution);
+            SetComboByTag(DurationBox, p.Duration);
+        }
+        catch { StatusText.Text = "加载预设失败"; }
+    }
+
+    private static void SetComboByTag(ComboBox cb, string tag)
+    {
+        foreach (ComboBoxItem item in cb.Items)
+            if (item.Tag?.ToString() == tag) { cb.SelectedItem = item; return; }
+    }
+
+    private void SavePreset_Click(object sender, RoutedEventArgs e)
+    {
+        var dlg = new TextInputDialog("预设名称", "请输入预设名称:");
+        if (dlg.ShowDialog() != true || string.IsNullOrWhiteSpace(dlg.Answer)) return;
+
+        var p = new GrokJobParams
+        {
+            Prompt = PromptBox.Text.Trim(),
+            Channel = GetTag(ChannelBox),
+            Mode = GetTag(ModeBox),
+            AspectRatio = GetTag(AspectRatioBox),
+            Resolution = GetTag(ResolutionBox),
+            Duration = GetTag(DurationBox)
+        };
+
+        var name = dlg.Answer.Trim();
+        var existing = PresetStore.FindByName(name, PresetKind.Grok);
+        if (existing != null)
+        {
+            var overwrite = MessageBox.Show($"已存在名为 \"{name}\" 的预设，是否覆盖？", "预设已存在",
+                MessageBoxButton.YesNo, MessageBoxImage.Question);
+            if (overwrite != MessageBoxResult.Yes) return;
+        }
+
+        var preset = new Preset
+        {
+            Name = name,
+            Kind = PresetKind.Grok,
+            ParamsJson = JsonSerializer.Serialize(p)
+        };
+        PresetStore.SavePreset(preset);
+        RefreshPresetList();
+        PresetBox.SelectedValue = preset.Id;
+        StatusText.Text = $"预设 \"{preset.Name}\" 已保存";
+    }
+
+    private void DeletePreset_Click(object sender, RoutedEventArgs e)
+    {
+        if (PresetBox.SelectedValue is not string id) return;
+        var preset = PresetStore.GetPreset(id, PresetKind.Grok);
+        if (preset == null) return;
+        var result = MessageBox.Show($"确定删除预设 \"{preset.Name}\"?", "删除预设",
+            MessageBoxButton.YesNo, MessageBoxImage.Warning);
+        if (result != MessageBoxResult.Yes) return;
+        PresetStore.DeletePreset(id, PresetKind.Grok);
+        RefreshPresetList();
+        StatusText.Text = $"预设 \"{preset.Name}\" 已删除";
     }
 
     private async void GenerateBtn_Click(object sender, RoutedEventArgs e)

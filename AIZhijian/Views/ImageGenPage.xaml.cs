@@ -5,6 +5,7 @@ using System.Windows.Controls;
 using System.Windows.Documents;
 using Microsoft.Win32;
 using AIZhijian.Models;
+using AIZhijian.Services;
 
 namespace AIZhijian.Views;
 
@@ -12,7 +13,11 @@ public partial class ImageGenPage : UserControl
 {
     private readonly List<FileRef> _images = new();
 
-    public ImageGenPage() => InitializeComponent();
+    public ImageGenPage()
+    {
+        InitializeComponent();
+        Loaded += (_, _) => RefreshPresetList();
+    }
 
     private string GetComboTag(ComboBox cb)
         => (cb.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? "";
@@ -54,6 +59,92 @@ public partial class ImageGenPage : UserControl
         var hasImages = _images.Count > 0;
         ClearImagesBtn.IsEnabled = hasImages;
         PhotoRealCheck.IsEnabled = !hasImages;
+    }
+
+    private void RefreshPresetList()
+    {
+        var presets = PresetStore.GetPresets(PresetKind.GptImage);
+        PresetBox.ItemsSource = presets;
+        PresetBox.SelectedIndex = -1;
+        DeletePresetBtn.IsEnabled = false;
+    }
+
+    private void PresetBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (PresetBox.SelectedValue is not string id) { DeletePresetBtn.IsEnabled = false; return; }
+        DeletePresetBtn.IsEnabled = true;
+        var preset = PresetStore.GetPreset(id, PresetKind.GptImage);
+        if (preset == null) return;
+
+        try
+        {
+            var p = System.Text.Json.JsonSerializer.Deserialize<GptImageJobParams>(preset.ParamsJson);
+            if (p == null) return;
+            PromptBox.Text = p.Prompt;
+            SetComboByTag(ChannelBox, p.Channel);
+            SetComboByTag(AspectRatioBox, p.AspectRatio);
+            SetComboByTag(ResolutionBox, p.Resolution);
+            SetComboByTag(QualityBox, p.Quality);
+            PhotoRealCheck.IsChecked = p.PhotoReal;
+        }
+        catch { StatusText.Text = "加载预设失败"; }
+    }
+
+    private static void SetComboByTag(ComboBox cb, string tag)
+    {
+        foreach (ComboBoxItem item in cb.Items)
+        {
+            if (item.Tag?.ToString() == tag) { cb.SelectedItem = item; return; }
+        }
+    }
+
+    private void SavePreset_Click(object sender, RoutedEventArgs e)
+    {
+        var dlg = new TextInputDialog("预设名称", "请输入预设名称:");
+        if (dlg.ShowDialog() != true || string.IsNullOrWhiteSpace(dlg.Answer)) return;
+
+        var p = new GptImageJobParams
+        {
+            Prompt = PromptBox.Text.Trim(),
+            Channel = GetComboTag(ChannelBox),
+            AspectRatio = GetComboTag(AspectRatioBox),
+            Resolution = GetComboTag(ResolutionBox),
+            Quality = GetComboTag(QualityBox),
+            PhotoReal = PhotoRealCheck.IsChecked ?? false
+        };
+
+        var name = dlg.Answer.Trim();
+        var existing = PresetStore.FindByName(name, PresetKind.GptImage);
+        if (existing != null)
+        {
+            var overwrite = MessageBox.Show($"已存在名为 \"{name}\" 的预设，是否覆盖？", "预设已存在",
+                MessageBoxButton.YesNo, MessageBoxImage.Question);
+            if (overwrite != MessageBoxResult.Yes) return;
+        }
+
+        var preset = new Preset
+        {
+            Name = name,
+            Kind = PresetKind.GptImage,
+            ParamsJson = System.Text.Json.JsonSerializer.Serialize(p)
+        };
+        PresetStore.SavePreset(preset);
+        RefreshPresetList();
+        PresetBox.SelectedValue = preset.Id;
+        StatusText.Text = $"预设 \"{preset.Name}\" 已保存";
+    }
+
+    private void DeletePreset_Click(object sender, RoutedEventArgs e)
+    {
+        if (PresetBox.SelectedValue is not string id) return;
+        var preset = PresetStore.GetPreset(id, PresetKind.GptImage);
+        if (preset == null) return;
+        var result = MessageBox.Show($"确定删除预设 \"{preset.Name}\"?", "删除预设",
+            MessageBoxButton.YesNo, MessageBoxImage.Warning);
+        if (result != MessageBoxResult.Yes) return;
+        PresetStore.DeletePreset(id, PresetKind.GptImage);
+        RefreshPresetList();
+        StatusText.Text = $"预设 \"{preset.Name}\" 已删除";
     }
 
     private async void GenerateBtn_Click(object sender, RoutedEventArgs e)
