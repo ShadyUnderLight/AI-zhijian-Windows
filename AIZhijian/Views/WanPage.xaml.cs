@@ -85,7 +85,6 @@ public partial class WanPage : UserControl
             HeightBox.Text = p.Height.ToString();
             SecondsBox.Text = p.Seconds.ToString();
             Enable48GCheck.IsChecked = p.Enable48G;
-            ModeBox_Changed(ModeBox, null!);
         }
         catch { StatusText.Text = "加载预设失败"; }
     }
@@ -116,9 +115,18 @@ public partial class WanPage : UserControl
             Enable48G = Enable48GCheck.IsChecked ?? false
         };
 
+        var name = dlg.Answer.Trim();
+        var existing = PresetStore.FindByName(name, PresetKind.Wan);
+        if (existing != null)
+        {
+            var overwrite = MessageBox.Show($"已存在名为 \"{name}\" 的预设，是否覆盖？", "预设已存在",
+                MessageBoxButton.YesNo, MessageBoxImage.Question);
+            if (overwrite != MessageBoxResult.Yes) return;
+        }
+
         var preset = new Preset
         {
-            Name = dlg.Answer.Trim(),
+            Name = name,
             Kind = PresetKind.Wan,
             ParamsJson = JsonSerializer.Serialize(p)
         };

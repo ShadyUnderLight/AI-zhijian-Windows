@@ -181,9 +181,18 @@ public partial class SeedancePage : UserControl
             GenerateAudio = AudioCheck.IsChecked ?? true
         };
 
+        var name = dlg.Answer.Trim();
+        var existing = PresetStore.FindByName(name, PresetKind.Seedance);
+        if (existing != null)
+        {
+            var overwrite = MessageBox.Show($"已存在名为 \"{name}\" 的预设，是否覆盖？", "预设已存在",
+                MessageBoxButton.YesNo, MessageBoxImage.Question);
+            if (overwrite != MessageBoxResult.Yes) return;
+        }
+
         var preset = new Preset
         {
-            Name = dlg.Answer.Trim(),
+            Name = name,
             Kind = PresetKind.Seedance,
             ParamsJson = JsonSerializer.Serialize(p)
         };

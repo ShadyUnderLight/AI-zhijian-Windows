@@ -16,6 +16,8 @@ public static class PresetStore
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase
     };
 
+    private static readonly object _lock = new();
+
     private static string GetFilePath(PresetKind kind)
         => Path.Combine(BaseDir, $"{kind}.json");
 
@@ -25,34 +27,57 @@ public static class PresetStore
         if (!File.Exists(path)) return new();
         try
         {
-            var json = File.ReadAllText(path);
-            return JsonSerializer.Deserialize<List<Preset>>(json, JsonOptions) ?? new();
+            lock (_lock)
+            {
+                var json = File.ReadAllText(path);
+                return JsonSerializer.Deserialize<List<Preset>>(json, JsonOptions) ?? new();
+            }
         }
         catch { return new(); }
     }
 
     public static void SavePreset(Preset preset)
     {
-        Directory.CreateDirectory(BaseDir);
-        var path = GetFilePath(preset.Kind);
-        var presets = GetPresets(preset.Kind);
-        var existing = presets.FindIndex(p => p.Id == preset.Id);
-        if (existing >= 0)
-            presets[existing] = preset;
-        else
-            presets.Add(preset);
-        File.WriteAllText(path, JsonSerializer.Serialize(presets, JsonOptions));
+        lock (_lock)
+        {
+            try
+            {
+                Directory.CreateDirectory(BaseDir);
+                var path = GetFilePath(preset.Kind);
+                var presets = File.Exists(path)
+                    ? JsonSerializer.Deserialize<List<Preset>>(File.ReadAllText(path), JsonOptions) ?? new()
+                    : new List<Preset>();
+                var existing = presets.FindIndex(p => p.Id == preset.Id);
+                if (existing >= 0)
+                    presets[existing] = preset;
+                else
+                    presets.Add(preset);
+                File.WriteAllText(path, JsonSerializer.Serialize(presets, JsonOptions));
+            }
+            catch { }
+        }
     }
 
     public static void DeletePreset(string id, PresetKind kind)
     {
-        var path = GetFilePath(kind);
-        if (!File.Exists(path)) return;
-        var presets = GetPresets(kind);
-        presets.RemoveAll(p => p.Id == id);
-        File.WriteAllText(path, JsonSerializer.Serialize(presets, JsonOptions));
+        lock (_lock)
+        {
+            try
+            {
+                var path = GetFilePath(kind);
+                if (!File.Exists(path)) return;
+                var presets = JsonSerializer.Deserialize<List<Preset>>(File.ReadAllText(path), JsonOptions) ?? new();
+                presets.RemoveAll(p => p.Id == id);
+                File.WriteAllText(path, JsonSerializer.Serialize(presets, JsonOptions));
+            }
+            catch { }
+        }
     }
 
     public static Preset? GetPreset(string id, PresetKind kind)
         => GetPresets(kind).FirstOrDefault(p => p.Id == id);
+
+    public static Preset? FindByName(string name, PresetKind kind)
+        => GetPresets(kind).FirstOrDefault(p =>
+            string.Equals(p.Name, name, StringComparison.OrdinalIgnoreCase));
 }

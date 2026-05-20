@@ -83,9 +83,18 @@ public partial class BananaPage : UserControl
             Provider = (ProviderBox.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? "third_party"
         };
 
+        var name = dlg.Answer.Trim();
+        var existing = PresetStore.FindByName(name, PresetKind.Banana);
+        if (existing != null)
+        {
+            var overwrite = MessageBox.Show($"已存在名为 \"{name}\" 的预设，是否覆盖？", "预设已存在",
+                MessageBoxButton.YesNo, MessageBoxImage.Question);
+            if (overwrite != MessageBoxResult.Yes) return;
+        }
+
         var preset = new Preset
         {
-            Name = dlg.Answer.Trim(),
+            Name = name,
             Kind = PresetKind.Banana,
             ParamsJson = System.Text.Json.JsonSerializer.Serialize(p)
         };

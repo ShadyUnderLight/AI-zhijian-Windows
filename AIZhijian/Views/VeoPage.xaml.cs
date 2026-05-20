@@ -125,22 +125,38 @@ public partial class VeoPage : UserControl
         var dlg = new TextInputDialog("预设名称", "请输入预设名称:");
         if (dlg.ShowDialog() != true || string.IsNullOrWhiteSpace(dlg.Answer)) return;
 
+        var channel = GetTag(ChannelBox);
+        var model = GetTag(ModelBox);
+        var mode = GetTag(ModeBox);
+        var duration = VeoRules.ShouldSendDuration(channel, model, mode)
+            ? GetTag(DurationBox)
+            : VeoRules.FixedDuration(channel, model, mode) ?? GetTag(DurationBox);
+
         var p = new VeoJobParams
         {
             Prompt = PromptBox.Text.Trim(),
-            Channel = GetTag(ChannelBox),
-            Model = GetTag(ModelBox),
-            Mode = GetTag(ModeBox),
+            Channel = channel,
+            Model = model,
+            Mode = mode,
             AspectRatio = GetTag(AspectRatioBox),
             Resolution = GetTag(ResolutionBox),
             GenerateAudio = AudioCheckBox.IsChecked ?? false,
             NegativePrompt = NegPromptBox.Text,
-            Duration = GetTag(DurationBox)
+            Duration = duration
         };
+
+        var name = dlg.Answer.Trim();
+        var existing = PresetStore.FindByName(name, PresetKind.Veo);
+        if (existing != null)
+        {
+            var overwrite = MessageBox.Show($"已存在名为 \"{name}\" 的预设，是否覆盖？", "预设已存在",
+                MessageBoxButton.YesNo, MessageBoxImage.Question);
+            if (overwrite != MessageBoxResult.Yes) return;
+        }
 
         var preset = new Preset
         {
-            Name = dlg.Answer.Trim(),
+            Name = name,
             Kind = PresetKind.Veo,
             ParamsJson = JsonSerializer.Serialize(p)
         };
