@@ -149,7 +149,7 @@ public class GenerationTaskExecutor
         return new() { Result = PollTickResult.StillProcessing };
     }
 
-    private static string? MapIntermediateStatus(TaskPollResponse r)
+    internal static string? MapIntermediateStatus(TaskPollResponse r)
     {
         foreach (var raw in new[] { r.RhStatus, r.DbStatus, r.Status, r.TaskStatus })
         {
