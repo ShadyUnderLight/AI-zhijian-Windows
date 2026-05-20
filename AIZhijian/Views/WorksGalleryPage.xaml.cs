@@ -41,6 +41,7 @@ public partial class WorksGalleryPage : UserControl
         }).ToList();
 
         WorksItems.ItemsSource = displayList;
+        EmptyText.Text = _showFavoritesOnly ? "暂无收藏作品" : "暂无作品";
         EmptyText.Visibility = displayList.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
     }
 
@@ -57,6 +58,12 @@ public partial class WorksGalleryPage : UserControl
     {
         _showFavoritesOnly = !_showFavoritesOnly;
         FavFilterBtn.Content = _showFavoritesOnly ? "★ 显示全部" : "⭐ 仅收藏";
+        FavFilterBtn.Foreground = _showFavoritesOnly
+            ? System.Windows.Media.Brushes.White
+            : (System.Windows.Media.Brush)FindResource("TextPrimary");
+        FavFilterBtn.Background = _showFavoritesOnly
+            ? (System.Windows.Media.Brush)FindResource("AccentBrush")
+            : System.Windows.Media.Brushes.Transparent;
         RefreshList();
     }
 
