@@ -3,6 +3,8 @@ using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Documents;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using Microsoft.Win32;
 using AIZhijian.Models;
 using AIZhijian.Services;
@@ -22,27 +24,94 @@ public partial class ImageGenPage : UserControl
     private string GetComboTag(ComboBox cb)
         => (cb.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? "";
 
-    private void PickImages_Click(object sender, RoutedEventArgs e)
+    private async void PickImages_Click(object sender, RoutedEventArgs e)
     {
         if (_images.Count >= 10) { StatusText.Text = "最多10张参考图"; return; }
 
         var dlg = new OpenFileDialog { Filter = "图片|*.png;*.jpg;*.jpeg;*.webp|所有|*.*", Multiselect = true };
         if (dlg.ShowDialog() != true) return;
 
-        foreach (var path in dlg.FileNames.Take(10 - _images.Count))
-        {
-            var data = File.ReadAllBytes(path);
-            var mime = Path.GetExtension(path).ToLower() switch
-            {
-                ".png" => "image/png", ".jpg" or ".jpeg" => "image/jpeg",
-                ".webp" => "image/webp", _ => "image/png"
-            };
-            _images.Add(new FileRef { Data = data, Name = Path.GetFileName(path), Mime = mime });
+        var maxSize = 25L * 1024 * 1024;
+        var remaining = 10 - _images.Count;
+        var added = 0;
+        var totalSelected = dlg.FileNames.Length;
 
-            var tb = new TextBlock { Text = Path.GetFileName(path), FontSize = 12,
-                Foreground = System.Windows.Media.Brushes.Gray, Margin = new Thickness(0, 2, 0, 0) };
-            ImagesPanel.Children.Add(tb);
+        foreach (var path in dlg.FileNames.Take(remaining))
+        {
+            try
+            {
+                var fi = new FileInfo(path);
+                if (fi.Length > maxSize)
+                {
+                    StatusText.Text = $"文件 {fi.Name} 超过25MB限制，已跳过";
+                    continue;
+                }
+
+                var data = await File.ReadAllBytesAsync(path);
+
+                var ext = Path.GetExtension(path).ToLowerInvariant();
+                var mime = ext switch
+                {
+                    ".png" => "image/png",
+                    ".jpg" or ".jpeg" => "image/jpeg",
+                    ".webp" => "image/webp",
+                    _ => null
+                };
+                if (mime == null)
+                {
+                    StatusText.Text = $"不支持的文件格式 \"{ext}\"，已跳过";
+                    continue;
+                }
+
+                var bmp = new BitmapImage();
+                using (var ms = new MemoryStream(data))
+                {
+                    bmp.BeginInit();
+                    bmp.CacheOption = BitmapCacheOption.OnLoad;
+                    bmp.StreamSource = ms;
+                    bmp.EndInit();
+                }
+
+                _images.Add(new FileRef { Data = data, Name = fi.Name, Mime = mime });
+
+                var dims = bmp.PixelWidth > 0 && bmp.PixelHeight > 0
+                    ? $"{bmp.PixelWidth}x{bmp.PixelHeight}"
+                    : "尺寸未知";
+
+                var thumb = new Border
+                {
+                    Width = 80, Height = 80,
+                    BorderBrush = Brushes.LightGray, BorderThickness = new Thickness(1),
+                    CornerRadius = new CornerRadius(4), Margin = new Thickness(0, 0, 6, 6),
+                    Child = new Image { Source = bmp, Stretch = Stretch.UniformToFill }
+                };
+
+                var info = new TextBlock
+                {
+                    Text = $"{fi.Name}\n{dims}",
+                    FontSize = 11, Foreground = Brushes.Gray,
+                    Margin = new Thickness(0, 0, 6, 0)
+                };
+
+                var cell = new StackPanel { Orientation = Orientation.Vertical, Margin = new Thickness(0, 0, 8, 8) };
+                cell.Children.Add(thumb);
+                cell.Children.Add(info);
+                ImagesPanel.Children.Add(cell);
+                added++;
+            }
+            catch (IOException ex)
+            {
+                StatusText.Text = $"读取文件 {Path.GetFileName(path)} 失败: {ex.Message}";
+            }
+            catch
+            {
+                StatusText.Text = $"文件 {Path.GetFileName(path)} 不是有效的图片，已跳过";
+            }
         }
+
+        StatusText.Text = totalSelected > remaining
+            ? $"{added} 张已添加，{totalSelected - remaining} 张因数量限制被跳过"
+            : $"{added} 张参考图已添加";
 
         UpdateImageModeState();
     }
@@ -160,10 +229,11 @@ public partial class ImageGenPage : UserControl
         try
         {
             var api = Services.ApiService.Instance;
-            var result = _images.Count > 0
+            var imagesSnapshot = _images.ToList();
+            var result = imagesSnapshot.Count > 0
                 ? await api.GenerateImageToImage(prompt, GetComboTag(ChannelBox),
                     GetComboTag(AspectRatioBox), GetComboTag(ResolutionBox),
-                    GetComboTag(QualityBox), _images)
+                    GetComboTag(QualityBox), imagesSnapshot)
                 : await api.GenerateImage(prompt, GetComboTag(ChannelBox),
                     GetComboTag(AspectRatioBox), GetComboTag(ResolutionBox),
                     GetComboTag(QualityBox), PhotoRealCheck.IsChecked ?? false);

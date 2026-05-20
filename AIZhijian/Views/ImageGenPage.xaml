@@ -36,7 +36,7 @@
                         <Button x:Name="ClearImagesBtn" Content="清除" Style="{StaticResource SecondaryButton}"
                                 Width="60" Margin="8,0,0,0" Click="ClearImages_Click" IsEnabled="False"/>
                     </StackPanel>
-                    <StackPanel x:Name="ImagesPanel" Margin="0,6,0,0"/>
+                    <WrapPanel x:Name="ImagesPanel" Margin="0,6,0,0"/>
                 </StackPanel>
 
                 <Grid Margin="0,0,0,12">
