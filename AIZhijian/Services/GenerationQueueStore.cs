@@ -72,6 +72,13 @@ public class GenerationQueueStore
         var item = _items.FirstOrDefault(i => i.Id == id);
         if (item?.Status != GenerationQueueStatus.Failed) return;
 
+        if (item.Params == null)
+        {
+            item.ErrorMessage = "参数已丢失，无法重试，请重新提交";
+            NotifyState();
+            return;
+        }
+
         item.Status = GenerationQueueStatus.Pending;
         item.ErrorMessage = null;
         item.RetryCount++;
