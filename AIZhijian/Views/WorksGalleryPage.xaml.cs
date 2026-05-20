@@ -7,6 +7,7 @@ namespace AIZhijian.Views;
 public partial class WorksGalleryPage : UserControl
 {
     private readonly WorksStore _works = new();
+    private bool _showFavoritesOnly;
 
     public WorksGalleryPage()
     {
@@ -24,11 +25,40 @@ public partial class WorksGalleryPage : UserControl
                 _works.AddRecord(item);
         }
 
-        WorksItems.ItemsSource = _works.Records;
-        EmptyText.Visibility = _works.Records.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        var source = _showFavoritesOnly
+            ? _works.Records.Where(r => _works.FavoriteIds.Contains(r.Id))
+            : _works.Records;
+
+        var displayList = source.Select(r => new
+        {
+            r.Id,
+            r.Prompt,
+            r.Kind,
+            r.CreatedAt,
+            r.ErrorMessage,
+            IsFavorite = _works.FavoriteIds.Contains(r.Id),
+            FavoriteStar = _works.FavoriteIds.Contains(r.Id) ? "⭐" : "☆"
+        }).ToList();
+
+        WorksItems.ItemsSource = displayList;
+        EmptyText.Visibility = displayList.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
     }
 
     private void Refresh_Click(object sender, RoutedEventArgs e) => RefreshList();
+
+    private void Favorite_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button btn && btn.CommandParameter is string id)
+            _works.ToggleFavorite(id);
+        RefreshList();
+    }
+
+    private void FavFilter_Click(object sender, RoutedEventArgs e)
+    {
+        _showFavoritesOnly = !_showFavoritesOnly;
+        FavFilterBtn.Content = _showFavoritesOnly ? "★ 显示全部" : "⭐ 仅收藏";
+        RefreshList();
+    }
 
     private void ClearAll_Click(object sender, RoutedEventArgs e)
     {
