@@ -3,6 +3,8 @@ using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Documents;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using Microsoft.Win32;
 using AIZhijian.Models;
 using AIZhijian.Services;
@@ -29,19 +31,52 @@ public partial class ImageGenPage : UserControl
         var dlg = new OpenFileDialog { Filter = "图片|*.png;*.jpg;*.jpeg;*.webp|所有|*.*", Multiselect = true };
         if (dlg.ShowDialog() != true) return;
 
+        var maxSize = 25L * 1024 * 1024;
         foreach (var path in dlg.FileNames.Take(10 - _images.Count))
         {
+            var fi = new FileInfo(path);
+            if (fi.Length > maxSize)
+            {
+                StatusText.Text = $"文件 {fi.Name} 超过25MB限制，已跳过";
+                continue;
+            }
+
             var data = File.ReadAllBytes(path);
             var mime = Path.GetExtension(path).ToLower() switch
             {
                 ".png" => "image/png", ".jpg" or ".jpeg" => "image/jpeg",
                 ".webp" => "image/webp", _ => "image/png"
             };
-            _images.Add(new FileRef { Data = data, Name = Path.GetFileName(path), Mime = mime });
+            _images.Add(new FileRef { Data = data, Name = fi.Name, Mime = mime });
 
-            var tb = new TextBlock { Text = Path.GetFileName(path), FontSize = 12,
-                Foreground = System.Windows.Media.Brushes.Gray, Margin = new Thickness(0, 2, 0, 0) };
-            ImagesPanel.Children.Add(tb);
+            var bmp = new BitmapImage();
+            using (var ms = new MemoryStream(data))
+            {
+                bmp.BeginInit();
+                bmp.CacheOption = BitmapCacheOption.OnLoad;
+                bmp.StreamSource = ms;
+                bmp.EndInit();
+            }
+
+            var thumb = new Border
+            {
+                Width = 80, Height = 80,
+                BorderBrush = Brushes.LightGray, BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(4), Margin = new Thickness(0, 0, 6, 6),
+                Child = new Image { Source = bmp, Stretch = Stretch.UniformToFill }
+            };
+
+            var info = new TextBlock
+            {
+                Text = $"{fi.Name}\n{bmp.PixelWidth}x{bmp.PixelHeight}",
+                FontSize = 11, Foreground = Brushes.Gray,
+                Margin = new Thickness(0, 0, 6, 0)
+            };
+
+            var cell = new StackPanel { Orientation = Orientation.Vertical, Margin = new Thickness(0, 0, 8, 8) };
+            cell.Children.Add(thumb);
+            cell.Children.Add(info);
+            ImagesPanel.Children.Add(cell);
         }
 
         UpdateImageModeState();
