@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using AIZhijian.Services;
 
 namespace AIZhijian.Models;
 
@@ -161,7 +162,84 @@ public class GenerationQueueItem
     public string? PollDetail { get; set; }
     public List<StatusEvent> StatusHistory { get; set; } = new();
     public bool IsActive => Status == GenerationQueueStatus.Submitting || Status == GenerationQueueStatus.Polling;
-    public bool ShowRetry => Status == GenerationQueueStatus.Failed;
+    public string? RetryValidationError
+{
+    get
+    {
+        if (RestoredFromPersistence)
+            return "从持久化恢复的任务无法重试";
+        if (Params == null)
+            return "参数已丢失，无法重试";
+        return Params switch
+        {
+            GptImageJobParams p => ValidateGptImage(p),
+            BananaJobParams p => ValidateBanana(p),
+            SeedanceJobParams p => ValidateSeedance(p),
+            WanJobParams p => ValidateWan(p),
+            VeoJobParams p => ValidateVeo(p),
+            GrokJobParams p => ValidateGrok(p),
+            _ => null
+        };
+    }
+}
+
+public bool ShowRetry => Status == GenerationQueueStatus.Failed && RetryValidationError == null;
+
+private static string? ValidateGptImage(GptImageJobParams p)
+{
+    if (string.IsNullOrWhiteSpace(p.Prompt) && p.ReferenceImages.Count == 0)
+        return "提示词为空";
+    if (p.IsImageToImage && p.ReferenceImages.Any(r => r.Data.Length == 0))
+        return "参考图数据无效";
+    return null;
+}
+
+private static string? ValidateBanana(BananaJobParams p)
+{
+    if (string.IsNullOrWhiteSpace(p.Prompt) && p.ReferenceImages.Count == 0)
+        return "提示词为空";
+    if (p.ReferenceImages.Any(r => r.Data.Length == 0))
+        return "参考图数据无效";
+    return null;
+}
+
+private static string? ValidateSeedance(SeedanceJobParams p)
+{
+    if (string.IsNullOrWhiteSpace(p.Prompt))
+        return "提示词为空";
+    if (p.Assets.Any(a => a.Data == null && string.IsNullOrEmpty(a.DataUrl)))
+        return "素材数据无效";
+    return null;
+}
+
+private static string? ValidateWan(WanJobParams p)
+{
+    if (string.IsNullOrWhiteSpace(p.Prompt))
+        return "提示词为空";
+    if (p.Mode == "image" && (p.ImageData == null || p.ImageData.Length == 0))
+        return "参考图片数据无效";
+    if (p.FirstFrame != null && (p.FirstFrame.Data == null || p.FirstFrame.Data.Length == 0))
+        return "首帧数据无效";
+    if (p.LastFrame != null && (p.LastFrame.Data == null || p.LastFrame.Data.Length == 0))
+        return "尾帧数据无效";
+    return null;
+}
+
+private static string? ValidateVeo(VeoJobParams p)
+{
+    if (string.IsNullOrWhiteSpace(p.Prompt))
+        return "提示词为空";
+    if (!VeoRules.IsValidCombination(p.Channel, p.Model))
+        return "渠道/模型组合无效";
+    return null;
+}
+
+private static string? ValidateGrok(GrokJobParams p)
+{
+    if (string.IsNullOrWhiteSpace(p.Prompt))
+        return "提示词为空";
+    return null;
+}
     public string Elapsed => $"{(DateTime.Now - (StartedAt ?? CreatedAt)).TotalSeconds:F0}s";
     public string? RestoredSummary { get; set; }
     public string Summary

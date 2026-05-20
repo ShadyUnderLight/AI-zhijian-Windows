@@ -41,6 +41,9 @@
                                         <Button Content="✏ 重命名" Style="{StaticResource SecondaryButton}"
                                                 Click="BatchRename_Click" Tag="{Binding BatchId}"
                                                 FontSize="12" Margin="0,0,4,0"/>
+                                        <Button Content="重试失败" Style="{StaticResource SecondaryButton}"
+                                                Click="BatchRetry_Click" Tag="{Binding BatchId}"
+                                                FontSize="12" Margin="0,0,4,0"/>
                                         <Button Content="✕ 取消" Style="{StaticResource SecondaryButton}"
                                                 Click="BatchCancel_Click" Tag="{Binding BatchId}"
                                                 FontSize="12" Margin="0,0,4,0" Foreground="{StaticResource DangerBrush}"/>
@@ -57,7 +60,8 @@
                                                     <ColumnDefinition Width="100"/>
                                                     <ColumnDefinition Width="80"/>
                                                     <ColumnDefinition Width="*"/>
-                                                    <ColumnDefinition Width="60"/>
+                                                    <ColumnDefinition Width="50"/>
+                                                    <ColumnDefinition Width="40"/>
                                                     <ColumnDefinition Width="Auto"/>
                                                     <ColumnDefinition Width="Auto"/>
                                                 </Grid.ColumnDefinitions>
@@ -65,8 +69,11 @@
                                                 <TextBlock Grid.Column="1" Text="{Binding Status}" FontSize="12" VerticalAlignment="Center"/>
                                                 <TextBlock Grid.Column="2" Text="{Binding Summary}" FontSize="12" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Margin="0,0,8,0"/>
                                                 <TextBlock Grid.Column="3" Text="{Binding Elapsed}" FontSize="12" Foreground="{StaticResource TextSecondary}" VerticalAlignment="Center"/>
-                                                <TextBlock Grid.Column="4" Text="{Binding ErrorMessage}" FontSize="12" Foreground="{StaticResource DangerBrush}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="200" Margin="0,0,8,0"/>
-                                                <Button Grid.Column="5" Content="重试" FontSize="12"
+                                                <TextBlock Grid.Column="4" FontSize="12" Foreground="{StaticResource TextSecondary}" VerticalAlignment="Center">
+                                                    <Run Text="{Binding RetryCount, StringFormat='x{0}'}" />
+                                                </TextBlock>
+                                                <TextBlock Grid.Column="5" Text="{Binding ErrorMessage}" FontSize="12" Foreground="{StaticResource DangerBrush}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="200" Margin="0,0,8,0"/>
+                                                <Button Grid.Column="6" Content="重试" FontSize="12"
                                                         Visibility="{Binding ShowRetry, Converter={StaticResource BoolToVisibility}}"
                                                         Style="{StaticResource SecondaryButton}" Padding="8,2"
                                                         Click="RetryItem_Click" Tag="{Binding Id}"/>

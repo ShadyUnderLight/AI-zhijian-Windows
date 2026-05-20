@@ -94,6 +94,15 @@ public partial class TaskListPage : UserControl
         }
     }
 
+    private void BatchRetry_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button btn && btn.Tag is Guid batchId)
+        {
+            _queue.RetryBatch(batchId);
+            Refresh();
+        }
+    }
+
     private void BatchCancel_Click(object sender, RoutedEventArgs e)
     {
         if (sender is Button btn && btn.Tag is Guid batchId)

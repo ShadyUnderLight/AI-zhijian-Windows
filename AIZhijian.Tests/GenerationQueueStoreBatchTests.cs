@@ -215,6 +215,123 @@ public class GenerationQueueStoreBatchTests : IDisposable
     }
 
     [Fact]
+    public void RetryFailed_rejects_restoredFromPersistence()
+    {
+        var item = new GenerationQueueItem
+        {
+            Kind = GenerationJobKind.GptImage,
+            Status = GenerationQueueStatus.Failed,
+            RestoredFromPersistence = true
+        };
+        _store.Enqueue(item);
+
+        _store.RetryFailed(item.Id);
+
+        Assert.Equal(GenerationQueueStatus.Failed, item.Status);
+        Assert.NotNull(item.ErrorMessage);
+        Assert.Contains("持久化", item.ErrorMessage);
+    }
+
+    [Fact]
+    public void RetryFailed_rejects_empty_prompt()
+    {
+        var item = new GenerationQueueItem
+        {
+            Kind = GenerationJobKind.GptImage,
+            Status = GenerationQueueStatus.Failed,
+            Params = new GptImageJobParams { Prompt = "" }
+        };
+        _store.Enqueue(item);
+
+        _store.RetryFailed(item.Id);
+
+        Assert.Equal(GenerationQueueStatus.Failed, item.Status);
+        Assert.NotNull(item.ErrorMessage);
+        Assert.Contains("提示词", item.ErrorMessage);
+    }
+
+    [Fact]
+    public void RetryFailed_increments_retryCount_on_success()
+    {
+        var item = new GenerationQueueItem
+        {
+            Kind = GenerationJobKind.GptImage,
+            Status = GenerationQueueStatus.Failed,
+            Params = new GptImageJobParams { Prompt = "valid prompt" }
+        };
+        _store.Enqueue(item);
+
+        _store.RetryFailed(item.Id);
+
+        Assert.Equal(GenerationQueueStatus.Pending, item.Status);
+        Assert.Equal(1, item.RetryCount);
+        Assert.Null(item.ErrorMessage);
+        Assert.Null(item.TaskId);
+    }
+
+    [Fact]
+    public void RetryBatch_retries_all_failed_items()
+    {
+        var items = new List<GenerationQueueItem>
+        {
+            new() { Kind = GenerationJobKind.GptImage, Status = GenerationQueueStatus.Failed, Params = new GptImageJobParams { Prompt = "a" } },
+            new() { Kind = GenerationJobKind.GptImage, Status = GenerationQueueStatus.Failed, Params = new GptImageJobParams { Prompt = "b" } },
+            new() { Kind = GenerationJobKind.GptImage, Status = GenerationQueueStatus.Succeeded, Params = new GptImageJobParams { Prompt = "c" } },
+        };
+        _store.EnqueueBatch(items);
+        var batchId = items[0].BatchId!.Value;
+
+        _store.RetryBatch(batchId);
+
+        Assert.Equal(GenerationQueueStatus.Pending, items[0].Status);
+        Assert.Equal(GenerationQueueStatus.Pending, items[1].Status);
+        Assert.Equal(GenerationQueueStatus.Succeeded, items[2].Status);
+    }
+
+    [Fact]
+    public void RetryBatch_skips_invalid_items()
+    {
+        var items = new List<GenerationQueueItem>
+        {
+            new() { Kind = GenerationJobKind.GptImage, Status = GenerationQueueStatus.Failed, Params = new GptImageJobParams { Prompt = "valid" } },
+            new() { Kind = GenerationJobKind.GptImage, Status = GenerationQueueStatus.Failed, RestoredFromPersistence = true },
+        };
+        _store.EnqueueBatch(items);
+        var batchId = items[0].BatchId!.Value;
+
+        _store.RetryBatch(batchId);
+
+        Assert.Equal(GenerationQueueStatus.Pending, items[0].Status);
+        Assert.Equal(GenerationQueueStatus.Failed, items[1].Status);
+    }
+
+    [Fact]
+    public void ShowRetry_false_when_validation_fails()
+    {
+        var item = new GenerationQueueItem
+        {
+            Kind = GenerationJobKind.GptImage,
+            Status = GenerationQueueStatus.Failed,
+            RestoredFromPersistence = true
+        };
+
+        Assert.False(item.ShowRetry);
+    }
+
+    [Fact]
+    public void ShowRetry_true_when_all_valid()
+    {
+        var item = new GenerationQueueItem
+        {
+            Kind = GenerationJobKind.GptImage,
+            Status = GenerationQueueStatus.Failed,
+            Params = new GptImageJobParams { Prompt = "valid prompt" }
+        };
+
+        Assert.True(item.ShowRetry);
+    }
+
+    [Fact]
     public void StatsSummary_reflects_batch_state()
     {
         _store.Enqueue(MakeItem());

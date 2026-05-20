@@ -72,9 +72,10 @@ public class GenerationQueueStore
         var item = _items.FirstOrDefault(i => i.Id == id);
         if (item?.Status != GenerationQueueStatus.Failed) return;
 
-        if (item.Params == null)
+        var validationError = item.RetryValidationError;
+        if (validationError != null)
         {
-            item.ErrorMessage = "参数已丢失，无法重试，请重新提交";
+            item.ErrorMessage = validationError;
             NotifyState();
             return;
         }
@@ -91,6 +92,37 @@ public class GenerationQueueStore
         item.ConsecutivePollFailures = 0;
         item.StatusHistory.Clear();
         NotifyAndProcess();
+    }
+
+    public void RetryBatch(Guid batchId)
+    {
+        var anyRetried = false;
+        foreach (var item in _items.Where(i => i.BatchId == batchId && i.Status == GenerationQueueStatus.Failed))
+        {
+            var validationError = item.RetryValidationError;
+            if (validationError != null)
+            {
+                item.ErrorMessage = validationError;
+                NotifyState();
+                continue;
+            }
+
+            item.Status = GenerationQueueStatus.Pending;
+            item.ErrorMessage = null;
+            item.RetryCount++;
+            item.TaskId = null;
+            item.ResultUrls.Clear();
+            item.VideoUrl = null;
+            item.PriceUsd = null;
+            item.StartedAt = null;
+            item.CompletedAt = null;
+            item.ConsecutivePollFailures = 0;
+            item.StatusHistory.Clear();
+            anyRetried = true;
+        }
+
+        if (anyRetried) NotifyAndProcess();
+        else NotifyState();
     }
 
     public void ClearCompleted()
