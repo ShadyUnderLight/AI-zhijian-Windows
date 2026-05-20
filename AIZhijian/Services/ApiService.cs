@@ -12,6 +12,16 @@ public class ApiException : Exception
     public ApiException(string message) : base(message) { }
 }
 
+public enum BackendHealthState
+{
+    Unknown,
+    Checking,
+    Healthy,
+    Reachable,
+    Unhealthy,
+    Unreachable,
+}
+
 public static class AppConfig
 {
     private const string CustomUrlKey = "api_base_url_override";
@@ -60,6 +70,8 @@ public class ApiService
     public bool IsCheckingSession { get; set; } = true;
     public bool IsLoggingIn { get; set; }
     public string? LoginError { get; set; }
+    public BackendHealthState BackendHealth { get; set; } = BackendHealthState.Unknown;
+    private int _healthCheckToken;
     public bool RememberLogin
     {
         get => AIZhijian.Properties.Settings.Default.RememberLogin;
@@ -129,6 +141,38 @@ public class ApiService
             IsCheckingSession = false;
             NotifyStateChanged();
         }
+    }
+
+    public async Task CheckBackendHealth()
+    {
+        var currentToken = ++_healthCheckToken;
+
+        BackendHealth = BackendHealthState.Checking;
+        NotifyStateChanged();
+
+        try
+        {
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            var req = new HttpRequestMessage(HttpMethod.Get, BuildUrl("/api/auth/check"));
+            req.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+            var response = await _httpClient.SendAsync(req, cts.Token);
+
+            if (_healthCheckToken != currentToken) return;
+
+            BackendHealth = (int)response.StatusCode switch
+            {
+                200 => BackendHealthState.Healthy,
+                401 or 403 => BackendHealthState.Reachable,
+                _ => BackendHealthState.Unhealthy,
+            };
+        }
+        catch
+        {
+            if (_healthCheckToken != currentToken) return;
+            BackendHealth = BackendHealthState.Unreachable;
+        }
+
+        NotifyStateChanged();
     }
 
     public async Task<CheckResponse> Check(int timeoutSeconds = 30)
@@ -513,11 +557,13 @@ public class ApiService
 
     public void ResetAuthState(bool clearCache = false)
     {
+        _healthCheckToken++;
         _cookieContainer.GetAllCookies().ToList().ForEach(c => c.Expired = true);
         IsLoggedIn = false;
         Username = "";
         Role = "";
         UserId = 0;
+        BackendHealth = BackendHealthState.Unknown;
         ActiveTasks.Clear();
         if (clearCache)
         {
