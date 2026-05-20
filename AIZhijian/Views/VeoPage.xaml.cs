@@ -6,6 +6,7 @@ using System.Windows.Input;
 using Microsoft.Win32;
 using AIZhijian.Models;
 using AIZhijian.Services;
+using System.Text.Json;
 
 namespace AIZhijian.Views;
 
@@ -18,6 +19,7 @@ public partial class VeoPage : UserControl
     {
         InitializeComponent();
         PopulateChannels();
+        Loaded += (_, _) => RefreshPresetList();
     }
 
     private string GetTag(ComboBox cb) => (cb.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? "";
@@ -67,6 +69,98 @@ public partial class VeoPage : UserControl
         foreach (var r in VeoRules.ValidResolutions(channel, model, mode))
             ResolutionBox.Items.Add(Item(r.Label, r.Value));
         ResolutionBox.SelectedIndex = 0;
+    }
+
+    // ── Preset Management ──
+
+    private void RefreshPresetList()
+    {
+        var presets = PresetStore.GetPresets(PresetKind.Veo);
+        PresetBox.ItemsSource = presets;
+        PresetBox.SelectedIndex = -1;
+        DeletePresetBtn.IsEnabled = false;
+    }
+
+    private void PresetBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (PresetBox.SelectedValue is not string id) { DeletePresetBtn.IsEnabled = false; return; }
+        DeletePresetBtn.IsEnabled = true;
+        var preset = PresetStore.GetPreset(id, PresetKind.Veo);
+        if (preset == null) return;
+
+        try
+        {
+            var p = JsonSerializer.Deserialize<VeoJobParams>(preset.ParamsJson);
+            if (p == null) return;
+            PromptBox.Text = p.Prompt;
+            NegPromptBox.Text = p.NegativePrompt ?? "";
+            AudioCheckBox.IsChecked = p.GenerateAudio;
+
+            var channelTag = p.Channel;
+            var modelTag = p.Model;
+            var modeTag = p.Mode;
+            var resTag = p.Resolution;
+            var durTag = p.Duration;
+
+            SetComboByTag(ChannelBox, channelTag);
+            SetComboByTag(ModelBox, modelTag);
+            SetComboByTag(ModeBox, modeTag);
+
+            if (!string.IsNullOrEmpty(durTag))
+                SetComboByTag(DurationBox, durTag);
+            if (!string.IsNullOrEmpty(resTag))
+                SetComboByTag(ResolutionBox, resTag);
+        }
+        catch { StatusText.Text = "加载预设失败"; }
+    }
+
+    private static void SetComboByTag(ComboBox cb, string tag)
+    {
+        foreach (ComboBoxItem item in cb.Items)
+            if (item.Tag?.ToString() == tag) { cb.SelectedItem = item; return; }
+    }
+
+    private void SavePreset_Click(object sender, RoutedEventArgs e)
+    {
+        var dlg = new TextInputDialog("预设名称", "请输入预设名称:");
+        if (dlg.ShowDialog() != true || string.IsNullOrWhiteSpace(dlg.Answer)) return;
+
+        var p = new VeoJobParams
+        {
+            Prompt = PromptBox.Text.Trim(),
+            Channel = GetTag(ChannelBox),
+            Model = GetTag(ModelBox),
+            Mode = GetTag(ModeBox),
+            AspectRatio = GetTag(AspectRatioBox),
+            Resolution = GetTag(ResolutionBox),
+            GenerateAudio = AudioCheckBox.IsChecked ?? false,
+            NegativePrompt = NegPromptBox.Text,
+            Duration = GetTag(DurationBox)
+        };
+
+        var preset = new Preset
+        {
+            Name = dlg.Answer.Trim(),
+            Kind = PresetKind.Veo,
+            ParamsJson = JsonSerializer.Serialize(p)
+        };
+        PresetStore.SavePreset(preset);
+        RefreshPresetList();
+        PresetBox.SelectedValue = preset.Id;
+        StatusText.Text = $"预设 \"{preset.Name}\" 已保存";
+    }
+
+    private void DeletePreset_Click(object sender, RoutedEventArgs e)
+    {
+        if (PresetBox.SelectedValue is not string id) return;
+        var preset = PresetStore.GetPreset(id, PresetKind.Veo);
+        if (preset == null) return;
+        var result = MessageBox.Show($"确定删除预设 \"{preset.Name}\"?", "删除预设",
+            MessageBoxButton.YesNo, MessageBoxImage.Warning);
+        if (result != MessageBoxResult.Yes) return;
+        PresetStore.DeletePreset(id, PresetKind.Veo);
+        RefreshPresetList();
+        StatusText.Text = $"预设 \"{preset.Name}\" 已删除";
     }
 
     private void PickFiles_Click(object sender, RoutedEventArgs e)

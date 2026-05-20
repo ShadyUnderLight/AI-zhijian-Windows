@@ -6,6 +6,7 @@ using System.Windows.Input;
 using Microsoft.Win32;
 using AIZhijian.Models;
 using AIZhijian.Services;
+using System.Text.Json;
 
 namespace AIZhijian.Views;
 
@@ -22,7 +23,11 @@ public partial class SeedancePage : UserControl
     public SeedancePage()
     {
         InitializeComponent();
-        Loaded += async (_, _) => await LoadVirtualAssetsAsync();
+        Loaded += async (_, _) =>
+        {
+            RefreshPresetList();
+            await LoadVirtualAssetsAsync();
+        };
     }
 
     private string GetTag(ComboBox cb) => (cb.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? "";
@@ -115,6 +120,90 @@ public partial class SeedancePage : UserControl
     {
         if (!string.IsNullOrEmpty(_lastVideoUrl))
             try { Process.Start(new ProcessStartInfo(_lastVideoUrl) { UseShellExecute = true }); } catch { }
+    }
+
+    // ── Preset Management ──
+
+    private void RefreshPresetList()
+    {
+        var presets = PresetStore.GetPresets(PresetKind.Seedance);
+        PresetBox.ItemsSource = presets;
+        PresetBox.SelectedIndex = -1;
+        DeletePresetBtn.IsEnabled = false;
+    }
+
+    private void PresetBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (PresetBox.SelectedValue is not string id) { DeletePresetBtn.IsEnabled = false; return; }
+        DeletePresetBtn.IsEnabled = true;
+        var preset = PresetStore.GetPreset(id, PresetKind.Seedance);
+        if (preset == null) return;
+
+        try
+        {
+            var p = JsonSerializer.Deserialize<SeedanceJobParams>(preset.ParamsJson);
+            if (p == null) return;
+            PromptBox.Text = p.Prompt;
+            SetComboByTag(ModeBox, p.Mode);
+            SetComboByTag(ModelBox, p.Model);
+            SetComboByTag(RatioBox, p.Ratio);
+            SetComboByTag(ResolutionBox, p.Resolution);
+            DurationBox.Text = p.Duration.ToString();
+            CountBox.Text = p.Count.ToString();
+            AudioCheck.IsChecked = p.GenerateAudio;
+        }
+        catch { StatusText.Text = "加载预设失败"; }
+    }
+
+    private static void SetComboByTag(ComboBox cb, string tag)
+    {
+        foreach (ComboBoxItem item in cb.Items)
+            if (item.Tag?.ToString() == tag) { cb.SelectedItem = item; return; }
+    }
+
+    private void SavePreset_Click(object sender, RoutedEventArgs e)
+    {
+        if (!int.TryParse(DurationBox.Text, out var dur)) dur = 5;
+        if (!int.TryParse(CountBox.Text, out var cnt)) cnt = 1;
+
+        var dlg = new TextInputDialog("预设名称", "请输入预设名称:");
+        if (dlg.ShowDialog() != true || string.IsNullOrWhiteSpace(dlg.Answer)) return;
+
+        var p = new SeedanceJobParams
+        {
+            Prompt = PromptBox.Text.Trim(),
+            Mode = GetTag(ModeBox),
+            Model = GetTag(ModelBox),
+            Ratio = GetTag(RatioBox),
+            Resolution = GetTag(ResolutionBox),
+            Duration = dur,
+            Count = cnt,
+            GenerateAudio = AudioCheck.IsChecked ?? true
+        };
+
+        var preset = new Preset
+        {
+            Name = dlg.Answer.Trim(),
+            Kind = PresetKind.Seedance,
+            ParamsJson = JsonSerializer.Serialize(p)
+        };
+        PresetStore.SavePreset(preset);
+        RefreshPresetList();
+        PresetBox.SelectedValue = preset.Id;
+        StatusText.Text = $"预设 \"{preset.Name}\" 已保存";
+    }
+
+    private void DeletePreset_Click(object sender, RoutedEventArgs e)
+    {
+        if (PresetBox.SelectedValue is not string id) return;
+        var preset = PresetStore.GetPreset(id, PresetKind.Seedance);
+        if (preset == null) return;
+        var result = MessageBox.Show($"确定删除预设 \"{preset.Name}\"?", "删除预设",
+            MessageBoxButton.YesNo, MessageBoxImage.Warning);
+        if (result != MessageBoxResult.Yes) return;
+        PresetStore.DeletePreset(id, PresetKind.Seedance);
+        RefreshPresetList();
+        StatusText.Text = $"预设 \"{preset.Name}\" 已删除";
     }
 
     // ── Virtual Asset Management ──
