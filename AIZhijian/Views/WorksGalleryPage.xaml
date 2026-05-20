@@ -8,6 +8,8 @@
             <StackPanel Orientation="Horizontal">
                 <Button x:Name="RefreshBtn" Content="刷新" Style="{StaticResource SecondaryButton}"
                         Click="Refresh_Click" Width="80" Margin="0,0,8,0"/>
+                <Button x:Name="FavFilterBtn" Content="⭐ 仅收藏" Style="{StaticResource SecondaryButton}"
+                        Click="FavFilter_Click" Width="90" Margin="0,0,8,0"/>
                 <Button x:Name="ClearBtn" Content="清空全部" Style="{StaticResource SecondaryButton}"
                         Click="ClearAll_Click" Foreground="{StaticResource DangerBrush}"/>
             </StackPanel>
@@ -18,7 +20,14 @@
                 <DataTemplate>
                     <Border Style="{StaticResource CardBorder}" Margin="0,0,0,8">
                         <StackPanel>
-                            <TextBlock Text="{Binding Prompt}" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                            <DockPanel>
+                                <Button Content="{Binding FavoriteStar}" Width="32" Height="32"
+                                        Background="Transparent" BorderThickness="0" Cursor="Hand"
+                                        CommandParameter="{Binding Id}" Click="Favorite_Click"
+                                        DockPanel.Dock="Right"/>
+                                <TextBlock Text="{Binding Prompt}" FontWeight="SemiBold" TextWrapping="Wrap"
+                                           VerticalAlignment="Center"/>
+                            </DockPanel>
                             <TextBlock Foreground="{StaticResource TextSecondary}" FontSize="12">
                                 <Run Text="{Binding Kind, Mode=OneWay}"/><Run Text=" | "/>
                                 <Run Text="{Binding CreatedAt, StringFormat=yyyy-MM-dd HH:mm}"/>
