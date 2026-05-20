@@ -103,7 +103,6 @@ public class GenerationQueueStore
             if (validationError != null)
             {
                 item.ErrorMessage = validationError;
-                NotifyState();
                 continue;
             }
 

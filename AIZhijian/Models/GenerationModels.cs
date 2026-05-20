@@ -185,11 +185,13 @@ public class GenerationQueueItem
 
 public bool ShowRetry => Status == GenerationQueueStatus.Failed && RetryValidationError == null;
 
+private static bool IsEmptyData(byte[]? data) => data == null || data.Length == 0;
+
 private static string? ValidateGptImage(GptImageJobParams p)
 {
     if (string.IsNullOrWhiteSpace(p.Prompt) && p.ReferenceImages.Count == 0)
         return "提示词为空";
-    if (p.IsImageToImage && p.ReferenceImages.Any(r => r.Data.Length == 0))
+    if (p.ReferenceImages.Any(r => IsEmptyData(r.Data)))
         return "参考图数据无效";
     return null;
 }
@@ -198,7 +200,7 @@ private static string? ValidateBanana(BananaJobParams p)
 {
     if (string.IsNullOrWhiteSpace(p.Prompt) && p.ReferenceImages.Count == 0)
         return "提示词为空";
-    if (p.ReferenceImages.Any(r => r.Data.Length == 0))
+    if (p.ReferenceImages.Any(r => IsEmptyData(r.Data)))
         return "参考图数据无效";
     return null;
 }
@@ -216,11 +218,13 @@ private static string? ValidateWan(WanJobParams p)
 {
     if (string.IsNullOrWhiteSpace(p.Prompt))
         return "提示词为空";
-    if (p.Mode == "image" && (p.ImageData == null || p.ImageData.Length == 0))
+    if (p.Mode == "image" && IsEmptyData(p.ImageData))
         return "参考图片数据无效";
-    if (p.FirstFrame != null && (p.FirstFrame.Data == null || p.FirstFrame.Data.Length == 0))
+    if (p.Mode != "image" && (p.FirstFrame == null || p.LastFrame == null))
+        return "非图片模式需要首帧和尾帧数据";
+    if (p.FirstFrame != null && IsEmptyData(p.FirstFrame.Data))
         return "首帧数据无效";
-    if (p.LastFrame != null && (p.LastFrame.Data == null || p.LastFrame.Data.Length == 0))
+    if (p.LastFrame != null && IsEmptyData(p.LastFrame.Data))
         return "尾帧数据无效";
     return null;
 }
@@ -231,6 +235,22 @@ private static string? ValidateVeo(VeoJobParams p)
         return "提示词为空";
     if (!VeoRules.IsValidCombination(p.Channel, p.Model))
         return "渠道/模型组合无效";
+    if (p.ImageData != null && IsEmptyData(p.ImageData))
+        return "图片数据无效";
+    if (p.ImageFiles.Any(f => IsEmptyData(f.Data)))
+        return "参考图数据无效";
+    if (p.FirstImageData != null && IsEmptyData(p.FirstImageData))
+        return "首帧数据无效";
+    if (p.LastImageData != null && IsEmptyData(p.LastImageData))
+        return "尾帧数据无效";
+    if (p.VideoData != null && IsEmptyData(p.VideoData))
+        return "视频数据无效";
+    if (p.Ref1Data.HasValue && IsEmptyData(p.Ref1Data.Value.Data))
+        return "参考图1数据无效";
+    if (p.Ref2Data.HasValue && IsEmptyData(p.Ref2Data.Value.Data))
+        return "参考图2数据无效";
+    if (p.Ref3Data.HasValue && IsEmptyData(p.Ref3Data.Value.Data))
+        return "参考图3数据无效";
     return null;
 }
 
@@ -238,6 +258,10 @@ private static string? ValidateGrok(GrokJobParams p)
 {
     if (string.IsNullOrWhiteSpace(p.Prompt))
         return "提示词为空";
+    if (p.ImageFiles.Any(f => IsEmptyData(f.Data)))
+        return "参考图数据无效";
+    if (p.VideoData != null && IsEmptyData(p.VideoData))
+        return "视频数据无效";
     return null;
 }
     public string Elapsed => $"{(DateTime.Now - (StartedAt ?? CreatedAt)).TotalSeconds:F0}s";
