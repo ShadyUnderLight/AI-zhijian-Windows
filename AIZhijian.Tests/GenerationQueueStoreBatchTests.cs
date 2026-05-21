@@ -727,4 +727,55 @@ public class GenerationQueueStoreBatchTests : IDisposable
         Assert.Single(store.Items);
         Assert.Equal("keep-id", store.Items[0].Id);
     }
+
+    [Fact]
+    public void PausedBatchIds_persists_across_store_instances()
+    {
+        Properties.Settings.Default.PausedBatchIds = "";
+        Properties.Settings.Default.Save();
+
+        var batch1 = new List<GenerationQueueItem> { MakeItem("batch1") };
+        var batch2 = new List<GenerationQueueItem> { MakeItem("batch2") };
+        _store.EnqueueBatch(batch1, "Batch A");
+        _store.EnqueueBatch(batch2, "Batch B");
+
+        var batchId1 = batch1[0].BatchId!.Value;
+        var batchId2 = batch2[0].BatchId!.Value;
+
+        _store.PauseBatch(batchId1);
+
+        var savedJson = Properties.Settings.Default.PausedBatchIds;
+        Assert.False(string.IsNullOrEmpty(savedJson), "PausedBatchIds should be saved to settings");
+
+        var savedIds = JsonSerializer.Deserialize<List<Guid>>(savedJson);
+        Assert.NotNull(savedIds);
+        Assert.Contains(batchId1, savedIds);
+        Assert.DoesNotContain(batchId2, savedIds);
+
+        var store2 = new GenerationQueueStore(_api);
+        store2.Restore();
+
+        Assert.Contains(batchId1, store2.PausedBatches);
+        Assert.DoesNotContain(batchId2, store2.PausedBatches);
+    }
+
+    [Fact]
+    public void PausedBatchIds_restores_from_settings_on_construction()
+    {
+        Properties.Settings.Default.PausedBatchIds = "";
+        Properties.Settings.Default.Save();
+
+        var items = new List<GenerationQueueItem> { MakeItem() };
+        _store.EnqueueBatch(items, "Batch X");
+        var batchId = items[0].BatchId!.Value;
+        _store.PauseBatch(batchId);
+
+        var savedJson = Properties.Settings.Default.PausedBatchIds;
+        Assert.False(string.IsNullOrEmpty(savedJson));
+
+        var store2 = new GenerationQueueStore(_api);
+        store2.Restore();
+
+        Assert.Contains(batchId, store2.PausedBatches);
+    }
 }

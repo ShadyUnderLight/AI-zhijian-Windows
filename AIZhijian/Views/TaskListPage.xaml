@@ -28,31 +28,47 @@
                                 <Grid Margin="0,0,0,8">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="Auto"/>
                                         <ColumnDefinition Width="*"/>
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Grid.Column="0" Text="{Binding DisplayName}" FontWeight="Bold" FontSize="14" VerticalAlignment="Center"/>
-                                    <TextBlock Grid.Column="1" Text="{Binding ItemCountText}" Foreground="{StaticResource TextSecondary}" FontSize="12" VerticalAlignment="Center" Margin="8,0,0,0"/>
-                                    <StackPanel Grid.Column="2" Orientation="Horizontal"
-                                                Visibility="{Binding BatchId, Converter={StaticResource NullToVisibility}}">
-                                        <Button Content="{Binding PauseBtnText}" Style="{StaticResource SecondaryButton}"
-                                                Click="BatchPauseResume_Click" Tag="{Binding BatchId}"
-                                                Width="70" Margin="0,0,4,0" FontSize="12"/>
-                                        <Button Content="✏ 重命名" Style="{StaticResource SecondaryButton}"
-                                                Click="BatchRename_Click" Tag="{Binding BatchId}"
-                                                FontSize="12" Margin="0,0,4,0"/>
-                                        <Button Content="重试失败" Style="{StaticResource SecondaryButton}"
-                                                Click="BatchRetry_Click" Tag="{Binding BatchId}"
-                                                FontSize="12" Margin="0,0,4,0"/>
-                                        <Button Content="✕ 取消" Style="{StaticResource SecondaryButton}"
-                                                Click="BatchCancel_Click" Tag="{Binding BatchId}"
-                                                FontSize="12" Margin="0,0,4,0" Foreground="{StaticResource DangerBrush}"/>
-                                        <Button Content="清除" Style="{StaticResource SecondaryButton}"
-                                                Click="BatchClear_Click" Tag="{Binding BatchId}"
-                                                FontSize="12"/>
-                                    </StackPanel>
+
+                                    <Button Grid.Column="0" Content="{Binding ChevronText}"
+                                            Style="{StaticResource SecondaryButton}"
+                                            Width="24" Height="24" Padding="0" FontSize="10"
+                                            Visibility="{Binding BatchId, Converter={StaticResource NullToVisibility}}"
+                                            Tag="{Binding BatchId}"
+                                            Click="Chevron_Click"/>
+
+                                    <TextBlock Grid.Column="1" Text="{Binding DisplayName}"
+                                               FontWeight="Bold" FontSize="14"
+                                               VerticalAlignment="Center" Margin="4,0,0,0"
+                                               Tag="{Binding BatchId}"
+                                               MouseDown="BatchTitle_MouseDown"/>
+
+                                    <Border Grid.Column="2"
+                                            Visibility="{Binding IsPaused, Converter={StaticResource BoolToVisibility}}"
+                                            Background="#FFF0E0" CornerRadius="4" Padding="4,1" Margin="6,0,0,0"
+                                            VerticalAlignment="Center">
+                                        <TextBlock Text="⏸ 已暂停" FontSize="11" Foreground="#CC6600"/>
+                                    </Border>
+
+                                    <TextBlock Grid.Column="3" Text="{Binding StatusLabelText}"
+                                               Foreground="{StaticResource TextSecondary}"
+                                               FontSize="12" VerticalAlignment="Center"
+                                               Margin="8,0,0,0" TextTrimming="CharacterEllipsis"/>
+
+                                    <Button Grid.Column="4" Content="⋮"
+                                            Style="{StaticResource SecondaryButton}"
+                                            Width="28" Height="24" Padding="0" FontSize="16"
+                                            Visibility="{Binding BatchId, Converter={StaticResource NullToVisibility}}"
+                                            Tag="{Binding BatchId}"
+                                            Click="BatchMenuButton_Click"/>
                                 </Grid>
-                                <ItemsControl ItemsSource="{Binding Items}">
+
+                                <ItemsControl ItemsSource="{Binding Items}"
+                                              Visibility="{Binding IsExpanded, Converter={StaticResource BoolToVisibility}}">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
                                             <Grid Margin="0,2,0,2">
