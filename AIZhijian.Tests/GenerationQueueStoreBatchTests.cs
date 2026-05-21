@@ -522,6 +522,34 @@ public class GenerationQueueStoreBatchTests : IDisposable
     }
 
     [Fact]
+    public void HasFileData_Banana_with_references_returns_true()
+    {
+        var item = new GenerationQueueItem
+        {
+            Kind = GenerationJobKind.Banana,
+            Params = new BananaJobParams
+            {
+                Prompt = "test",
+                ReferenceImages = { new FileRef { Data = new byte[] { 1, 2 }, Name = "ref.png", Mime = "image/png" } }
+            }
+        };
+
+        Assert.True(item.HasFileData);
+    }
+
+    [Fact]
+    public void HasFileData_Banana_without_references_returns_false()
+    {
+        var item = new GenerationQueueItem
+        {
+            Kind = GenerationJobKind.Banana,
+            Params = new BananaJobParams { Prompt = "test" }
+        };
+
+        Assert.False(item.HasFileData);
+    }
+
+    [Fact]
     public void HasFileData_GptImage_with_references_returns_true()
     {
         var item = new GenerationQueueItem
@@ -572,6 +600,22 @@ public class GenerationQueueStoreBatchTests : IDisposable
         {
             Kind = GenerationJobKind.Seedance,
             Params = new SeedanceJobParams { Prompt = "test" }
+        };
+
+        Assert.False(item.HasFileData);
+    }
+
+    [Fact]
+    public void HasFileData_Seedance_virtual_asset_dataUrl_only_returns_false()
+    {
+        var item = new GenerationQueueItem
+        {
+            Kind = GenerationJobKind.Seedance,
+            Params = new SeedanceJobParams
+            {
+                Prompt = "test",
+                Assets = { new SeedanceAsset { Type = "video", Name = "asset.mp4", Mime = "video/mp4", DataUrl = "https://cdn.example.com/asset.mp4" } }
+            }
         };
 
         Assert.False(item.HasFileData);

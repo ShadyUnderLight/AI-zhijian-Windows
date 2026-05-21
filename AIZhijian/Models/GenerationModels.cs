@@ -270,7 +270,7 @@ private static string? ValidateGrok(GrokJobParams p)
     {
         GptImageJobParams p => p.ReferenceImages.Count > 0,
         BananaJobParams p => p.ReferenceImages.Count > 0,
-        SeedanceJobParams p => p.Assets.Count > 0,
+        SeedanceJobParams p => p.Assets.Any(a => a.Data != null),
         WanJobParams p => p.ImageData != null || p.FirstFrame != null || p.LastFrame != null,
         VeoJobParams p => p.ImageData != null || p.ImageFiles.Count > 0
             || p.FirstImageData != null || p.LastImageData != null
