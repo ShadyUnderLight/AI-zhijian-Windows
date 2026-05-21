@@ -111,7 +111,7 @@ public partial class BananaPage : UserControl
 
         var p = new BananaJobParams
         {
-            Prompt = PromptBox.Text.Trim(),
+            Prompt = _isBatchMode ? "" : PromptBox.Text.Trim(),
             Provider = (ProviderBox.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? "third_party"
         };
 
