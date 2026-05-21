@@ -5,6 +5,7 @@
     <conv:BoolToVisibilityConverter x:Key="BoolToVisibility"/>
     <conv:InverseBoolConverter x:Key="InverseBool"/>
     <conv:NullToVisibilityConverter x:Key="NullToVisibility"/>
+    <conv:PositiveIntToVisibilityConverter x:Key="PositiveIntToVisibility"/>
 
     <!-- Colors -->
     <SolidColorBrush x:Key="AccentBrush" Color="#0078D4"/>

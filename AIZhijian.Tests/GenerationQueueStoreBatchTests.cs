@@ -215,6 +215,123 @@ public class GenerationQueueStoreBatchTests : IDisposable
     }
 
     [Fact]
+    public void RetryFailed_rejects_restoredFromPersistence()
+    {
+        var item = new GenerationQueueItem
+        {
+            Kind = GenerationJobKind.GptImage,
+            Status = GenerationQueueStatus.Failed,
+            RestoredFromPersistence = true
+        };
+        _store.Enqueue(item);
+
+        _store.RetryFailed(item.Id);
+
+        Assert.Equal(GenerationQueueStatus.Failed, item.Status);
+        Assert.NotNull(item.ErrorMessage);
+        Assert.Contains("持久化", item.ErrorMessage);
+    }
+
+    [Fact]
+    public void RetryFailed_rejects_empty_prompt()
+    {
+        var item = new GenerationQueueItem
+        {
+            Kind = GenerationJobKind.GptImage,
+            Status = GenerationQueueStatus.Failed,
+            Params = new GptImageJobParams { Prompt = "" }
+        };
+        _store.Enqueue(item);
+
+        _store.RetryFailed(item.Id);
+
+        Assert.Equal(GenerationQueueStatus.Failed, item.Status);
+        Assert.NotNull(item.ErrorMessage);
+        Assert.Contains("提示词", item.ErrorMessage);
+    }
+
+    [Fact]
+    public void RetryFailed_increments_retryCount_on_success()
+    {
+        var item = new GenerationQueueItem
+        {
+            Kind = GenerationJobKind.GptImage,
+            Status = GenerationQueueStatus.Failed,
+            Params = new GptImageJobParams { Prompt = "valid prompt" }
+        };
+        _store.Enqueue(item);
+
+        _store.RetryFailed(item.Id);
+
+        Assert.Equal(GenerationQueueStatus.Pending, item.Status);
+        Assert.Equal(1, item.RetryCount);
+        Assert.Null(item.ErrorMessage);
+        Assert.Null(item.TaskId);
+    }
+
+    [Fact]
+    public void RetryBatch_retries_all_failed_items()
+    {
+        var items = new List<GenerationQueueItem>
+        {
+            new() { Kind = GenerationJobKind.GptImage, Status = GenerationQueueStatus.Failed, Params = new GptImageJobParams { Prompt = "a" } },
+            new() { Kind = GenerationJobKind.GptImage, Status = GenerationQueueStatus.Failed, Params = new GptImageJobParams { Prompt = "b" } },
+            new() { Kind = GenerationJobKind.GptImage, Status = GenerationQueueStatus.Succeeded, Params = new GptImageJobParams { Prompt = "c" } },
+        };
+        _store.EnqueueBatch(items);
+        var batchId = items[0].BatchId!.Value;
+
+        _store.RetryBatch(batchId);
+
+        Assert.Equal(GenerationQueueStatus.Pending, items[0].Status);
+        Assert.Equal(GenerationQueueStatus.Pending, items[1].Status);
+        Assert.Equal(GenerationQueueStatus.Succeeded, items[2].Status);
+    }
+
+    [Fact]
+    public void RetryBatch_skips_invalid_items()
+    {
+        var items = new List<GenerationQueueItem>
+        {
+            new() { Kind = GenerationJobKind.GptImage, Status = GenerationQueueStatus.Failed, Params = new GptImageJobParams { Prompt = "valid" } },
+            new() { Kind = GenerationJobKind.GptImage, Status = GenerationQueueStatus.Failed, RestoredFromPersistence = true },
+        };
+        _store.EnqueueBatch(items);
+        var batchId = items[0].BatchId!.Value;
+
+        _store.RetryBatch(batchId);
+
+        Assert.Equal(GenerationQueueStatus.Pending, items[0].Status);
+        Assert.Equal(GenerationQueueStatus.Failed, items[1].Status);
+    }
+
+    [Fact]
+    public void ShowRetry_false_when_validation_fails()
+    {
+        var item = new GenerationQueueItem
+        {
+            Kind = GenerationJobKind.GptImage,
+            Status = GenerationQueueStatus.Failed,
+            RestoredFromPersistence = true
+        };
+
+        Assert.False(item.ShowRetry);
+    }
+
+    [Fact]
+    public void ShowRetry_true_when_all_valid()
+    {
+        var item = new GenerationQueueItem
+        {
+            Kind = GenerationJobKind.GptImage,
+            Status = GenerationQueueStatus.Failed,
+            Params = new GptImageJobParams { Prompt = "valid prompt" }
+        };
+
+        Assert.True(item.ShowRetry);
+    }
+
+    [Fact]
     public void StatsSummary_reflects_batch_state()
     {
         _store.Enqueue(MakeItem());
@@ -228,5 +345,178 @@ public class GenerationQueueStoreBatchTests : IDisposable
         Assert.Contains("待提交 1", summary);
         Assert.Contains("完成 1", summary);
         Assert.Contains("失败 1", summary);
+    }
+
+    [Fact]
+    public void RetryValidation_Veo_rejects_invalid_channel_model()
+    {
+        var item = new GenerationQueueItem
+        {
+            Kind = GenerationJobKind.Veo,
+            Status = GenerationQueueStatus.Failed,
+            Params = new VeoJobParams { Prompt = "valid", Channel = "invalid", Model = "fast" }
+        };
+
+        Assert.NotNull(item.RetryValidationError);
+        Assert.Contains("渠道", item.RetryValidationError);
+    }
+
+    [Fact]
+    public void RetryValidation_Veo_rejects_empty_ImageData()
+    {
+        var item = new GenerationQueueItem
+        {
+            Kind = GenerationJobKind.Veo,
+            Status = GenerationQueueStatus.Failed,
+            Params = new VeoJobParams { Prompt = "valid", ImageData = Array.Empty<byte>() }
+        };
+
+        Assert.NotNull(item.RetryValidationError);
+        Assert.Contains("图片", item.RetryValidationError);
+    }
+
+    [Fact]
+    public void RetryValidation_Veo_rejects_empty_ImageFile_entry()
+    {
+        var item = new GenerationQueueItem
+        {
+            Kind = GenerationJobKind.Veo,
+            Status = GenerationQueueStatus.Failed,
+            Params = new VeoJobParams
+            {
+                Prompt = "valid",
+                ImageFiles = { new FileRef { Data = Array.Empty<byte>(), Name = "empty.jpg", Mime = "image/jpeg" } }
+            }
+        };
+
+        Assert.NotNull(item.RetryValidationError);
+        Assert.Contains("参考图", item.RetryValidationError);
+    }
+
+    [Fact]
+    public void RetryValidation_Veo_rejects_empty_FirstImageData()
+    {
+        var item = new GenerationQueueItem
+        {
+            Kind = GenerationJobKind.Veo,
+            Status = GenerationQueueStatus.Failed,
+            Params = new VeoJobParams { Prompt = "valid", FirstImageData = Array.Empty<byte>() }
+        };
+
+        Assert.NotNull(item.RetryValidationError);
+        Assert.Contains("首帧", item.RetryValidationError);
+    }
+
+    [Fact]
+    public void RetryValidation_Veo_rejects_Ref1Data_with_null_Data()
+    {
+        var item = new GenerationQueueItem
+        {
+            Kind = GenerationJobKind.Veo,
+            Status = GenerationQueueStatus.Failed,
+            Params = new VeoJobParams
+            {
+                Prompt = "valid",
+                Ref1Data = (null!, "", "")
+            }
+        };
+
+        Assert.NotNull(item.RetryValidationError);
+        Assert.Contains("参考图1", item.RetryValidationError);
+    }
+
+    [Fact]
+    public void RetryValidation_Grok_rejects_empty_ImageFile_entry()
+    {
+        var item = new GenerationQueueItem
+        {
+            Kind = GenerationJobKind.Grok,
+            Status = GenerationQueueStatus.Failed,
+            Params = new GrokJobParams
+            {
+                Prompt = "valid",
+                ImageFiles = { (Array.Empty<byte>(), "img.jpg", "image/jpeg") }
+            }
+        };
+
+        Assert.NotNull(item.RetryValidationError);
+        Assert.Contains("参考图", item.RetryValidationError);
+    }
+
+    [Fact]
+    public void RetryValidation_Grok_rejects_empty_VideoData()
+    {
+        var item = new GenerationQueueItem
+        {
+            Kind = GenerationJobKind.Grok,
+            Status = GenerationQueueStatus.Failed,
+            Params = new GrokJobParams { Prompt = "valid", VideoData = Array.Empty<byte>() }
+        };
+
+        Assert.NotNull(item.RetryValidationError);
+        Assert.Contains("视频", item.RetryValidationError);
+    }
+
+    [Fact]
+    public void RetryValidation_Wan_rejects_non_image_mode_without_frames()
+    {
+        var item = new GenerationQueueItem
+        {
+            Kind = GenerationJobKind.Wan,
+            Status = GenerationQueueStatus.Failed,
+            Params = new WanJobParams { Prompt = "valid", Mode = "first_last" }
+        };
+
+        Assert.NotNull(item.RetryValidationError);
+        Assert.Contains("首帧", item.RetryValidationError);
+    }
+
+    [Fact]
+    public void RetryValidation_Wan_passes_mode_image_with_ImageData()
+    {
+        var item = new GenerationQueueItem
+        {
+            Kind = GenerationJobKind.Wan,
+            Status = GenerationQueueStatus.Failed,
+            Params = new WanJobParams { Prompt = "valid", Mode = "image", ImageData = new byte[] { 1, 2, 3 } }
+        };
+
+        Assert.Null(item.RetryValidationError);
+    }
+
+    [Fact]
+    public void RetryValidation_Banana_rejects_empty_ReferenceImage()
+    {
+        var item = new GenerationQueueItem
+        {
+            Kind = GenerationJobKind.Banana,
+            Status = GenerationQueueStatus.Failed,
+            Params = new BananaJobParams
+            {
+                Prompt = "valid",
+                ReferenceImages = { new FileRef { Data = Array.Empty<byte>() } }
+            }
+        };
+
+        Assert.NotNull(item.RetryValidationError);
+        Assert.Contains("参考图", item.RetryValidationError);
+    }
+
+    [Fact]
+    public void RetryValidation_GptImage_rejects_FileRef_with_null_Data()
+    {
+        var item = new GenerationQueueItem
+        {
+            Kind = GenerationJobKind.GptImage,
+            Status = GenerationQueueStatus.Failed,
+            Params = new GptImageJobParams
+            {
+                Prompt = "valid",
+                ReferenceImages = { new FileRef { Data = null! } }
+            }
+        };
+
+        Assert.NotNull(item.RetryValidationError);
+        Assert.Contains("参考图", item.RetryValidationError);
     }
 }
