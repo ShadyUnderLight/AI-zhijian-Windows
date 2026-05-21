@@ -26,6 +26,7 @@ public partial class BananaPage : UserControl
         PromptBox.Text = "";
         BatchCountText.Visibility = _isBatchMode ? Visibility.Visible : Visibility.Collapsed;
         CostBanner.Visibility = Visibility.Collapsed;
+        ResultPanel.Visibility = Visibility.Collapsed;
         StatusText.Text = "";
         GenerateBtn.Content = _isBatchMode ? "批量加入队列" : "生成";
         UpdateBatchCount();
@@ -41,8 +42,7 @@ public partial class BananaPage : UserControl
     {
         if (!_isBatchMode) return;
         var raw = PromptBox.Text;
-        var count = raw.Split('\n', StringSplitOptions.RemoveEmptyEntries)
-            .Select(l => l.Trim())
+        var count = raw.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             .Count(l => l.Length > 0);
         BatchCountText.Text = count > 0
             ? $"检测到 {count} 条提示词{'，'}点击「批量加入队列」提交"
@@ -188,8 +188,7 @@ public partial class BananaPage : UserControl
     private void SubmitBatch()
     {
         var raw = PromptBox.Text;
-        var lines = raw.Split('\n', StringSplitOptions.RemoveEmptyEntries)
-            .Select(l => l.Trim())
+        var lines = raw.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             .Where(l => l.Length > 0)
             .ToList();
 
@@ -203,8 +202,10 @@ public partial class BananaPage : UserControl
         }
 
         var provider = (ProviderBox.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? "third_party";
-        var concurrencyLimit = App.Api.GetQueue().ConcurrencyLimit;
         var imagesSnapshot = _images.ToList();
+
+        var queue = App.Api.GetQueue();
+        var concurrencyLimit = queue.ConcurrencyLimit;
 
         var summary = $"批量提交 {lines.Count} 条\n" +
                       $"供应商: {provider}\n" +
@@ -221,7 +222,6 @@ public partial class BananaPage : UserControl
 
         try
         {
-            var queue = App.Api.GetQueue();
             var items = lines.Select(prompt => new GenerationQueueItem
             {
                 Kind = GenerationJobKind.Banana,
