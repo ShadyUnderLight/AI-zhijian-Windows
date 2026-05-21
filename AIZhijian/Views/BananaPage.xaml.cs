@@ -11,11 +11,42 @@ namespace AIZhijian.Views;
 public partial class BananaPage : UserControl
 {
     private readonly List<FileRef> _images = new();
+    private bool _isBatchMode;
 
     public BananaPage()
     {
         InitializeComponent();
         Loaded += (_, _) => RefreshPresetList();
+    }
+
+    private void ModeRadio_Checked(object sender, RoutedEventArgs e)
+    {
+        _isBatchMode = BatchModeRadio.IsChecked == true;
+        PromptBox.Height = _isBatchMode ? 200 : 80;
+        PromptBox.Text = "";
+        BatchCountText.Visibility = _isBatchMode ? Visibility.Visible : Visibility.Collapsed;
+        CostBanner.Visibility = Visibility.Collapsed;
+        ResultPanel.Visibility = Visibility.Collapsed;
+        StatusText.Text = "";
+        GenerateBtn.Content = _isBatchMode ? "批量加入队列" : "生成";
+        UpdateBatchCount();
+    }
+
+    private void PromptBox_TextChanged(object sender, TextChangedEventArgs e)
+    {
+        if (_isBatchMode)
+            UpdateBatchCount();
+    }
+
+    private void UpdateBatchCount()
+    {
+        if (!_isBatchMode) return;
+        var raw = PromptBox.Text;
+        var count = raw.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Count(l => l.Length > 0);
+        BatchCountText.Text = count > 0
+            ? $"检测到 {count} 条提示词{'，'}点击「批量加入队列」提交"
+            : "输入提示词，每行一条";
     }
 
     private void PickImages_Click(object sender, RoutedEventArgs e)
@@ -119,6 +150,12 @@ public partial class BananaPage : UserControl
 
     private async void GenerateBtn_Click(object sender, RoutedEventArgs e)
     {
+        if (_isBatchMode)
+        {
+            SubmitBatch();
+            return;
+        }
+
         var prompt = PromptBox.Text.Trim();
         if (string.IsNullOrEmpty(prompt)) { StatusText.Text = "请输入提示词"; return; }
 
@@ -140,6 +177,72 @@ public partial class BananaPage : UserControl
                 ResultImage.Source = bmp;
                 StatusText.Text = "生成完成";
             });
+        }
+        catch (Exception ex)
+        {
+            StatusText.Text = $"错误: {ex.Message}";
+        }
+        finally { GenerateBtn.IsEnabled = true; }
+    }
+
+    private void SubmitBatch()
+    {
+        var raw = PromptBox.Text;
+        var lines = raw.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Where(l => l.Length > 0)
+            .ToList();
+
+        if (lines.Count == 0) { StatusText.Text = "请在下框中输入提示词，每行一条"; return; }
+
+        var longLines = lines.Where(l => l.Length > 8000).ToList();
+        if (longLines.Count > 0)
+        {
+            StatusText.Text = $"以下行超过 8000 字符限制: {string.Join(", ", longLines.Take(3).Select(l => $"\"{l[..Math.Min(20, l.Length)]}...\""))}{(longLines.Count > 3 ? $" 等 {longLines.Count} 行" : "")}";
+            return;
+        }
+
+        var provider = (ProviderBox.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? "third_party";
+        var imagesSnapshot = _images.ToList();
+
+        var queue = App.Api.GetQueue();
+        var concurrencyLimit = queue.ConcurrencyLimit;
+
+        var summary = $"批量提交 {lines.Count} 条\n" +
+                      $"供应商: {provider}\n" +
+                      $"并发数: {concurrencyLimit}";
+        if (imagesSnapshot.Count > 0)
+            summary += $"\n参考图: {imagesSnapshot.Count} 张";
+
+        var confirm = MessageBox.Show(summary, "确认批量提交",
+            MessageBoxButton.YesNo, MessageBoxImage.Question);
+        if (confirm != MessageBoxResult.Yes) return;
+
+        GenerateBtn.IsEnabled = false;
+        StatusText.Text = $"正在将 {lines.Count} 个任务加入队列...";
+
+        try
+        {
+            var items = lines.Select(prompt => new GenerationQueueItem
+            {
+                Kind = GenerationJobKind.Banana,
+                Params = new BananaJobParams
+                {
+                    Prompt = prompt,
+                    Provider = provider,
+                    ReferenceImages = imagesSnapshot.Select(f => new FileRef
+                    {
+                        Data = f.Data,
+                        Name = f.Name,
+                        Mime = f.Mime
+                    }).ToList()
+                }
+            }).ToList();
+
+            queue.EnqueueBatch(items, $"Banana x{items.Count}");
+            StatusText.Text = $"✅ {items.Count} 个任务已加入队列";
+
+            CostBanner.Visibility = Visibility.Visible;
+            CostText.Text = $"{items.Count} 个任务等待提交 | 并发上限: {concurrencyLimit} | 可前往「⏳ 任务」页查看进度";
         }
         catch (Exception ex)
         {
