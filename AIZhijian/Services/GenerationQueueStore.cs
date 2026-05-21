@@ -180,6 +180,8 @@ public class GenerationQueueStore
 
     public void Restore()
     {
+        LoadPausedBatches();
+
         var snapshot = LoadSnapshot();
         if (snapshot == null || snapshot.Count == 0) return;
 
@@ -274,6 +276,31 @@ public class GenerationQueueStore
         catch { return null; }
     }
 
+    private void SavePausedBatches()
+    {
+        try
+        {
+            var json = JsonSerializer.Serialize(_pausedBatches.ToList(), SnapshotJsonOptions);
+            Properties.Settings.Default.PausedBatchIds = json;
+            Properties.Settings.Default.Save();
+        }
+        catch { }
+    }
+
+    private void LoadPausedBatches()
+    {
+        try
+        {
+            var json = Properties.Settings.Default.PausedBatchIds;
+            if (string.IsNullOrEmpty(json)) return;
+            var ids = JsonSerializer.Deserialize<List<Guid>>(json);
+            if (ids == null) return;
+            foreach (var id in ids)
+                _pausedBatches.Add(id);
+        }
+        catch { }
+    }
+
     public void CancelAndClearAll()
     {
         _processCts?.Cancel();
@@ -298,6 +325,7 @@ public class GenerationQueueStore
     {
         StateChanged?.Invoke();
         SaveSnapshot();
+        SavePausedBatches();
     }
 
     private void StartProcessing()

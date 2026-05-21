@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using System.Windows.Threading;
 using AIZhijian.Models;
 using AIZhijian.Services;
@@ -12,7 +13,10 @@ public class BatchGroup
     public string DisplayName { get; set; } = "";
     public string ItemCountText => $"{Items.Count} 个任务";
     public bool IsPaused { get; set; }
-    public string PauseBtnText => IsPaused ? "▶ 恢复" : "⏸ 暂停";
+    public string PauseBtnText => IsPaused ? "▶ 继续" : "⏸ 暂停";
+    public bool IsExpanded { get; set; } = true;
+    public string ChevronText => IsExpanded ? "▼" : "▶";
+    public string StatusLabelText { get; set; } = "";
     public List<GenerationQueueItem> Items { get; init; } = new();
 }
 
@@ -20,6 +24,7 @@ public partial class TaskListPage : UserControl
 {
     private readonly GenerationQueueStore _queue;
     private readonly DispatcherTimer _timer;
+    private readonly Dictionary<Guid, bool> _batchExpandedStates = new();
 
     public TaskListPage()
     {
@@ -42,12 +47,29 @@ public partial class TaskListPage : UserControl
                 var first = g.First();
                 var batchId = g.Key;
                 var isPaused = batchId != null && _queue.PausedBatches.Contains(batchId.Value);
+
+                var expanded = batchId == null || _batchExpandedStates.GetValueOrDefault(batchId.Value, true);
+
+                var items = g.OrderBy(i => i.CreatedAt).ToList();
+                var pending = items.Count(i => i.Status == GenerationQueueStatus.Pending);
+                var active = items.Count(i => i.Status is GenerationQueueStatus.Submitting or GenerationQueueStatus.Polling);
+                var done = items.Count(i => i.Status == GenerationQueueStatus.Succeeded);
+                var failed = items.Count(i => i.Status == GenerationQueueStatus.Failed);
+
+                var statusParts = new List<string>();
+                if (pending > 0) statusParts.Add($"待提交 {pending}");
+                if (active > 0) statusParts.Add($"进行中 {active}");
+                if (done > 0) statusParts.Add($"完成 {done}");
+                if (failed > 0) statusParts.Add($"失败 {failed}");
+
                 return new BatchGroup
                 {
                     BatchId = batchId,
                     DisplayName = first.BatchName ?? "未分组",
                     IsPaused = isPaused,
-                    Items = g.OrderBy(i => i.CreatedAt).ToList()
+                    IsExpanded = expanded,
+                    StatusLabelText = statusParts.Count > 0 ? string.Join(" | ", statusParts) : "",
+                    Items = items
                 };
             })
             .ToList();
@@ -68,9 +90,46 @@ public partial class TaskListPage : UserControl
     private void ClearFailed_Click(object sender, RoutedEventArgs e) { _queue.ClearFailed(); Refresh(); }
     private void CancelAll_Click(object sender, RoutedEventArgs e) { _queue.CancelAndClearAll(); Refresh(); }
 
+    private static Guid? GetBatchId(object sender)
+    {
+        return sender switch
+        {
+            Button btn => btn.Tag as Guid?,
+            MenuItem mi => mi.Tag as Guid?,
+            _ => null
+        };
+    }
+
+    private void Chevron_Click(object sender, RoutedEventArgs e)
+    {
+        if (GetBatchId(sender) is Guid batchId)
+        {
+            var current = _batchExpandedStates.GetValueOrDefault(batchId, true);
+            _batchExpandedStates[batchId] = !current;
+            Refresh();
+        }
+    }
+
+    private void RenameBatch(Guid batchId)
+    {
+        var currentName = _queue.Items.FirstOrDefault(i => i.BatchId == batchId)?.BatchName ?? "";
+        var dialog = new InputDialog("重命名批次", "批次名称:", currentName);
+        if (dialog.ShowDialog() == true)
+        {
+            _queue.RenameBatch(batchId, dialog.Value);
+            Refresh();
+        }
+    }
+
+    private void BatchTitle_MouseDown(object sender, MouseButtonEventArgs e)
+    {
+        if (e.ClickCount == 2 && GetBatchId(sender) is Guid batchId)
+            RenameBatch(batchId);
+    }
+
     private void BatchPauseResume_Click(object sender, RoutedEventArgs e)
     {
-        if (sender is Button btn && btn.Tag is Guid batchId)
+        if (GetBatchId(sender) is Guid batchId)
         {
             if (_queue.PausedBatches.Contains(batchId))
                 _queue.ResumeBatch(batchId);
@@ -82,21 +141,13 @@ public partial class TaskListPage : UserControl
 
     private void BatchRename_Click(object sender, RoutedEventArgs e)
     {
-        if (sender is Button btn && btn.Tag is Guid batchId)
-        {
-            var currentName = _queue.Items.FirstOrDefault(i => i.BatchId == batchId)?.BatchName ?? "";
-            var dialog = new InputDialog("重命名批次", "批次名称:", currentName);
-            if (dialog.ShowDialog() == true)
-            {
-                _queue.RenameBatch(batchId, dialog.Value);
-                Refresh();
-            }
-        }
+        if (GetBatchId(sender) is Guid batchId)
+            RenameBatch(batchId);
     }
 
     private void BatchRetry_Click(object sender, RoutedEventArgs e)
     {
-        if (sender is Button btn && btn.Tag is Guid batchId)
+        if (GetBatchId(sender) is Guid batchId)
         {
             _queue.RetryBatch(batchId);
             Refresh();
@@ -105,7 +156,7 @@ public partial class TaskListPage : UserControl
 
     private void BatchCancel_Click(object sender, RoutedEventArgs e)
     {
-        if (sender is Button btn && btn.Tag is Guid batchId)
+        if (GetBatchId(sender) is Guid batchId)
         {
             _queue.CancelBatch(batchId);
             Refresh();
@@ -114,11 +165,35 @@ public partial class TaskListPage : UserControl
 
     private void BatchClear_Click(object sender, RoutedEventArgs e)
     {
-        if (sender is Button btn && btn.Tag is Guid batchId)
+        if (GetBatchId(sender) is Guid batchId)
         {
             _queue.ClearBatch(batchId);
             Refresh();
         }
+    }
+
+    private void BatchMenuButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button btn && btn.DataContext is BatchGroup group && group.BatchId is Guid batchId)
+        {
+            var menu = new ContextMenu();
+
+            AddMenuItem(menu, group.PauseBtnText, batchId, BatchPauseResume_Click);
+            AddMenuItem(menu, "✏ 重命名", batchId, BatchRename_Click);
+            AddMenuItem(menu, "重试失败", batchId, BatchRetry_Click);
+            AddMenuItem(menu, "✕ 取消", batchId, BatchCancel_Click);
+            AddMenuItem(menu, "清除", batchId, BatchClear_Click);
+
+            btn.ContextMenu = menu;
+            menu.IsOpen = true;
+        }
+    }
+
+    private static void AddMenuItem(ContextMenu menu, string header, Guid batchId, RoutedEventHandler handler)
+    {
+        var item = new MenuItem { Header = header, Tag = batchId };
+        item.Click += handler;
+        menu.Items.Add(item);
     }
 
     private void RetryItem_Click(object sender, RoutedEventArgs e)

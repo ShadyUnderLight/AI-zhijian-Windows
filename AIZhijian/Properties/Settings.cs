@@ -43,4 +43,8 @@ internal sealed class Settings : ApplicationSettingsBase
     [UserScopedSetting]
     [DefaultSettingValue("")]
     public string QueueSnapshot { get => (string)this["QueueSnapshot"]; set => this["QueueSnapshot"] = value; }
+
+    [UserScopedSetting]
+    [DefaultSettingValue("")]
+    public string PausedBatchIds { get => (string)this["PausedBatchIds"]; set => this["PausedBatchIds"] = value; }
 }
