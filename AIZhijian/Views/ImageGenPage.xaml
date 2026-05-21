@@ -25,8 +25,27 @@
                                 Click="DeletePreset_Click" IsEnabled="False"/>
                     </Grid>
                 </Border>
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                    <RadioButton x:Name="SingleModeRadio" Content="单条生成" IsChecked="True"
+                                 GroupName="ImageGenMode" FontWeight="SemiBold" Margin="0,0,16,0"
+                                 Checked="ModeRadio_Checked"/>
+                    <RadioButton x:Name="BatchModeRadio" Content="批量生成"
+                                 GroupName="ImageGenMode" FontWeight="SemiBold"
+                                 Checked="ModeRadio_Checked"/>
+                </StackPanel>
+
                 <TextBlock Text="提示词" FontWeight="SemiBold" Margin="0,0,0,4"/>
-                <TextBox x:Name="PromptBox" Height="80" TextWrapping="Wrap" AcceptsReturn="True" Margin="0,0,0,12"/>
+                <TextBox x:Name="PromptBox" Height="80" TextWrapping="Wrap" AcceptsReturn="True" Margin="0,0,0,4"
+                         TextChanged="PromptBox_TextChanged"/>
+
+                <TextBlock x:Name="BatchCountText" Visibility="Collapsed"
+                           Foreground="{StaticResource TextSecondary}" Margin="0,0,0,12"/>
+
+                <Border x:Name="CostBanner" Visibility="Collapsed"
+                        Background="#FFF8E1" BorderBrush="#FFE082" BorderThickness="1"
+                        CornerRadius="4" Padding="10" Margin="0,0,0,12">
+                    <TextBlock x:Name="CostText" TextWrapping="Wrap"/>
+                </Border>
 
                 <StackPanel Margin="0,0,0,12">
                     <TextBlock Text="参考图片 (最多10张，可选)" FontWeight="SemiBold" Margin="0,0,0,4"/>
