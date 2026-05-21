@@ -7,7 +7,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>AIZhijian</RootNamespace>
-    <AssemblyName>AI智剪</AssemblyName>
+    <AssemblyName>AIZhijian</AssemblyName>
     <Version>1.0.0</Version>
     <Authors>ShadyUnderLight</Authors>
     <Description>海灵智剪 Windows 客户端 - AI 图片/视频生成工具</Description>

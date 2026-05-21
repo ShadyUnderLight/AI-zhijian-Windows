@@ -24,6 +24,7 @@ public partial class ImageGenPage : UserControl
 
     private void ModeRadio_Checked(object sender, RoutedEventArgs e)
     {
+        if (!IsLoaded) return;
         _isBatchMode = BatchModeRadio.IsChecked == true;
         PromptBox.Height = _isBatchMode ? 200 : 80;
         PromptBox.Text = "";

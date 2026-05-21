@@ -152,7 +152,7 @@ public class GenerationQueueStore
 
     public void PauseBatch(Guid batchId) { _pausedBatches.Add(batchId); NotifyState(); }
 
-    public void ResumeBatch(Guid batchId) { _pausedBatches.Remove(batchId); NotifyState(); }
+    public void ResumeBatch(Guid batchId) { _pausedBatches.Remove(batchId); NotifyState(); StartProcessing(); }
 
     public void RenameBatch(Guid batchId, string name)
     {
@@ -310,6 +310,7 @@ public class GenerationQueueStore
                 item.Status = GenerationQueueStatus.Cancelled;
         }
         _items.Clear();
+        _pausedBatches.Clear();
         NotifyState();
     }
 
@@ -351,7 +352,9 @@ public class GenerationQueueStore
 
                 var allDone = _items.All(i => i.Status is GenerationQueueStatus.Succeeded
                     or GenerationQueueStatus.Failed or GenerationQueueStatus.Cancelled);
-                if (allDone && !_items.Any(i => i.Status == GenerationQueueStatus.Pending)) break;
+                var hasActivePending = _items.Any(i => i.Status == GenerationQueueStatus.Pending
+                    && (i.BatchId == null || !_pausedBatches.Contains(i.BatchId.Value)));
+                if (allDone && !hasActivePending) break;
 
                 await Task.Delay(3000, ct);
             }

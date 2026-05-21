@@ -11,7 +11,6 @@ public class BatchGroup
 {
     public Guid? BatchId { get; init; }
     public string DisplayName { get; set; } = "";
-    public string ItemCountText => $"{Items.Count} 个任务";
     public bool IsPaused { get; set; }
     public string PauseBtnText => IsPaused ? "▶ 继续" : "⏸ 暂停";
     public bool IsExpanded { get; set; } = true;
@@ -96,6 +95,7 @@ public partial class TaskListPage : UserControl
         {
             Button btn => btn.Tag as Guid?,
             MenuItem mi => mi.Tag as Guid?,
+            FrameworkElement fe => fe.Tag as Guid?,
             _ => null
         };
     }
@@ -114,9 +114,9 @@ public partial class TaskListPage : UserControl
     {
         var currentName = _queue.Items.FirstOrDefault(i => i.BatchId == batchId)?.BatchName ?? "";
         var dialog = new InputDialog("重命名批次", "批次名称:", currentName);
-        if (dialog.ShowDialog() == true)
+        if (dialog.ShowDialog() == true && !string.IsNullOrWhiteSpace(dialog.Value))
         {
-            _queue.RenameBatch(batchId, dialog.Value);
+            _queue.RenameBatch(batchId, dialog.Value.Trim());
             Refresh();
         }
     }
