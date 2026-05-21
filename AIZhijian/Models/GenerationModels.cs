@@ -266,6 +266,18 @@ private static string? ValidateGrok(GrokJobParams p)
 }
     public string Elapsed => $"{(DateTime.Now - (StartedAt ?? CreatedAt)).TotalSeconds:F0}s";
     public string? RestoredSummary { get; set; }
+    public bool HasFileData => Params switch
+    {
+        GptImageJobParams p => p.ReferenceImages.Count > 0,
+        BananaJobParams p => p.ReferenceImages.Count > 0,
+        SeedanceJobParams p => p.Assets.Count > 0,
+        WanJobParams p => p.ImageData != null || p.FirstFrame != null || p.LastFrame != null,
+        VeoJobParams p => p.ImageData != null || p.ImageFiles.Count > 0
+            || p.FirstImageData != null || p.LastImageData != null
+            || p.VideoData != null || p.Ref1Data != null || p.Ref2Data != null || p.Ref3Data != null,
+        GrokJobParams p => p.ImageFiles.Count > 0 || p.VideoData != null,
+        _ => false,
+    };
     public string Summary
     {
         get

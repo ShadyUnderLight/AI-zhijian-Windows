@@ -1,3 +1,4 @@
+using System.Text.Json;
 using AIZhijian.Models;
 using AIZhijian.Services;
 
@@ -518,5 +519,168 @@ public class GenerationQueueStoreBatchTests : IDisposable
 
         Assert.NotNull(item.RetryValidationError);
         Assert.Contains("参考图", item.RetryValidationError);
+    }
+
+    [Fact]
+    public void HasFileData_GptImage_with_references_returns_true()
+    {
+        var item = new GenerationQueueItem
+        {
+            Kind = GenerationJobKind.GptImage,
+            Params = new GptImageJobParams
+            {
+                Prompt = "test",
+                ReferenceImages = { new FileRef { Data = new byte[] { 1, 2, 3 }, Name = "ref.jpg", Mime = "image/jpeg" } }
+            }
+        };
+
+        Assert.True(item.HasFileData);
+    }
+
+    [Fact]
+    public void HasFileData_GptImage_without_references_returns_false()
+    {
+        var item = new GenerationQueueItem
+        {
+            Kind = GenerationJobKind.GptImage,
+            Params = new GptImageJobParams { Prompt = "test" }
+        };
+
+        Assert.False(item.HasFileData);
+    }
+
+    [Fact]
+    public void HasFileData_Seedance_with_assets_returns_true()
+    {
+        var item = new GenerationQueueItem
+        {
+            Kind = GenerationJobKind.Seedance,
+            Params = new SeedanceJobParams
+            {
+                Prompt = "test",
+                Assets = { new SeedanceAsset { Type = "image", Name = "asset.png", Mime = "image/png", Data = new byte[] { 1 } } }
+            }
+        };
+
+        Assert.True(item.HasFileData);
+    }
+
+    [Fact]
+    public void HasFileData_Seedance_without_assets_returns_false()
+    {
+        var item = new GenerationQueueItem
+        {
+            Kind = GenerationJobKind.Seedance,
+            Params = new SeedanceJobParams { Prompt = "test" }
+        };
+
+        Assert.False(item.HasFileData);
+    }
+
+    [Fact]
+    public void HasFileData_Wan_with_ImageData_returns_true()
+    {
+        var item = new GenerationQueueItem
+        {
+            Kind = GenerationJobKind.Wan,
+            Params = new WanJobParams { Prompt = "test", ImageData = new byte[] { 1, 2, 3 } }
+        };
+
+        Assert.True(item.HasFileData);
+    }
+
+    [Fact]
+    public void HasFileData_Wan_without_binary_returns_false()
+    {
+        var item = new GenerationQueueItem
+        {
+            Kind = GenerationJobKind.Wan,
+            Params = new WanJobParams { Prompt = "test" }
+        };
+
+        Assert.False(item.HasFileData);
+    }
+
+    [Fact]
+    public void HasFileData_null_Params_returns_false()
+    {
+        var item = new GenerationQueueItem
+        {
+            Kind = GenerationJobKind.GptImage,
+            Params = null
+        };
+
+        Assert.False(item.HasFileData);
+    }
+
+    [Fact]
+    public void HasFileData_Veo_with_ImageFiles_returns_true()
+    {
+        var item = new GenerationQueueItem
+        {
+            Kind = GenerationJobKind.Veo,
+            Params = new VeoJobParams
+            {
+                Prompt = "test",
+                ImageFiles = { new FileRef { Data = new byte[] { 1 }, Name = "img.jpg", Mime = "image/jpeg" } }
+            }
+        };
+
+        Assert.True(item.HasFileData);
+    }
+
+    [Fact]
+    public void HasFileData_Veo_without_binary_returns_false()
+    {
+        var item = new GenerationQueueItem
+        {
+            Kind = GenerationJobKind.Veo,
+            Params = new VeoJobParams { Prompt = "test" }
+        };
+
+        Assert.False(item.HasFileData);
+    }
+
+    [Fact]
+    public void HasFileData_Grok_with_VideoData_returns_true()
+    {
+        var item = new GenerationQueueItem
+        {
+            Kind = GenerationJobKind.Grok,
+            Params = new GrokJobParams { Prompt = "test", VideoData = new byte[] { 1, 2 } }
+        };
+
+        Assert.True(item.HasFileData);
+    }
+
+    [Fact]
+    public void HasFileData_Grok_without_binary_returns_false()
+    {
+        var item = new GenerationQueueItem
+        {
+            Kind = GenerationJobKind.Grok,
+            Params = new GrokJobParams { Prompt = "test" }
+        };
+
+        Assert.False(item.HasFileData);
+    }
+
+    [Fact]
+    public void Restore_skips_snapshot_items_with_HasFileData()
+    {
+        var snapshot = new List<QueueItemSnapshot>
+        {
+            new() { Id = "skip-id", Kind = "GptImage", Status = "Polling", TaskId = "task1", SummaryText = "skip", HasFileData = true },
+            new() { Id = "keep-id", Kind = "GptImage", Status = "Polling", TaskId = "task2", SummaryText = "keep" },
+        };
+        var json = JsonSerializer.Serialize(snapshot);
+        Properties.Settings.Default.QueueSnapshot = json;
+        Properties.Settings.Default.Save();
+
+        var store = new GenerationQueueStore(_api);
+        store.Restore();
+
+        Assert.Single(store.Items);
+        Assert.Equal("keep-id", store.Items[0].Id);
     }
 }
