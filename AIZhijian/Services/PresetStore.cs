@@ -26,10 +26,10 @@ public static class PresetStore
 
     public static List<Preset> GetPresets(PresetKind kind)
     {
-        var path = GetFilePath(kind);
-        if (!File.Exists(path)) return new();
         lock (_lock)
         {
+            var path = GetFilePath(kind);
+            if (!File.Exists(path)) return new();
             try
             {
                 var json = File.ReadAllText(path);
@@ -45,7 +45,7 @@ public static class PresetStore
     private static List<Preset> ReadPresets(string json, PresetKind kind)
     {
         var wrapper = TryDeserialize<PresetListWrapper>(json);
-        if (wrapper?.Presets != null)
+        if (wrapper?.Presets != null && wrapper.SchemaVersion == PresetListWrapper.CurrentSchemaVersion)
             return wrapper.Presets;
 
         var legacy = TryDeserialize<List<Preset>>(json);
@@ -157,10 +157,13 @@ public static class PresetStore
     {
         var wrapper = new PresetListWrapper
         {
-            SchemaVersion = 1,
+            SchemaVersion = PresetListWrapper.CurrentSchemaVersion,
             Presets = presets
         };
-        File.WriteAllText(path, JsonSerializer.Serialize(wrapper, JsonOptions));
+        var json = JsonSerializer.Serialize(wrapper, JsonOptions);
+        var tmpPath = path + ".tmp";
+        File.WriteAllText(tmpPath, json);
+        File.Move(tmpPath, path, overwrite: true);
     }
 
     public static Preset? GetPreset(string id, PresetKind kind)

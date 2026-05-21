@@ -15,7 +15,7 @@ public class Preset
 
 public class PresetListWrapper
 {
-    public int SchemaVersion { get; set; } = 1;
+    public const int CurrentSchemaVersion = 1;
+    public int SchemaVersion { get; set; } = CurrentSchemaVersion;
     public List<Preset> Presets { get; set; } = new();
-    public string? BackupKey { get; set; }
 }

@@ -152,6 +152,37 @@ public class PresetStoreTests
     }
 
     [Fact]
+    public void Rejects_unknown_schema_version()
+    {
+        var baseDir = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "AIZhijian", "presets");
+        var filePath = Path.Combine(baseDir, "GptImage.json");
+
+        var existingData = File.Exists(filePath) ? File.ReadAllText(filePath) : null;
+        try
+        {
+            Directory.CreateDirectory(baseDir);
+            var futureWrapper = new PresetListWrapper
+            {
+                SchemaVersion = 999,
+                Presets = new List<Preset> { new() { Name = "future_data", Kind = PresetKind.GptImage } }
+            };
+            File.WriteAllText(filePath, JsonSerializer.Serialize(futureWrapper, JsonOptions));
+
+            var presets = PresetStore.GetPresets(PresetKind.GptImage);
+            Assert.DoesNotContain(presets, p => p.Name == "future_data");
+        }
+        finally
+        {
+            if (existingData != null)
+                File.WriteAllText(filePath, existingData);
+            else if (File.Exists(filePath))
+                File.Delete(filePath);
+        }
+    }
+
+    [Fact]
     public void Update_existing_preset_by_id()
     {
         var preset = MakePreset("upd_id", PresetKind.Veo, "{\"a\":1}");
