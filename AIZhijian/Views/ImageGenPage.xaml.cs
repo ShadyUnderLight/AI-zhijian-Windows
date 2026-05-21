@@ -206,7 +206,7 @@ public partial class ImageGenPage : UserControl
 
         var p = new GptImageJobParams
         {
-            Prompt = PromptBox.Text.Trim(),
+            Prompt = _isBatchMode ? "" : PromptBox.Text.Trim(),
             Channel = GetComboTag(ChannelBox),
             AspectRatio = GetComboTag(AspectRatioBox),
             Resolution = GetComboTag(ResolutionBox),

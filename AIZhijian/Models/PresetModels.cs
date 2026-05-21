@@ -12,3 +12,10 @@ public class Preset
     public string ParamsJson { get; set; } = "{}";
     public DateTime CreatedAt { get; set; } = DateTime.Now;
 }
+
+public class PresetListWrapper
+{
+    public int SchemaVersion { get; set; } = 1;
+    public List<Preset> Presets { get; set; } = new();
+    public string? BackupKey { get; set; }
+}

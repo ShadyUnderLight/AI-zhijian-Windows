@@ -21,19 +21,96 @@ public static class PresetStore
     private static string GetFilePath(PresetKind kind)
         => Path.Combine(BaseDir, $"{kind}.json");
 
+    private static string GetBackupPath(PresetKind kind)
+        => Path.Combine(BaseDir, $"{kind}.json.bak");
+
     public static List<Preset> GetPresets(PresetKind kind)
     {
         var path = GetFilePath(kind);
         if (!File.Exists(path)) return new();
-        try
+        lock (_lock)
         {
-            lock (_lock)
+            try
             {
                 var json = File.ReadAllText(path);
-                return JsonSerializer.Deserialize<List<Preset>>(json, JsonOptions) ?? new();
+                return ReadPresets(json, kind);
+            }
+            catch
+            {
+                return TryRecoverFromBackup(kind);
             }
         }
-        catch { return new(); }
+    }
+
+    private static List<Preset> ReadPresets(string json, PresetKind kind)
+    {
+        var wrapper = TryDeserialize<PresetListWrapper>(json);
+        if (wrapper?.Presets != null)
+            return wrapper.Presets;
+
+        var legacy = TryDeserialize<List<Preset>>(json);
+        if (legacy != null)
+            return legacy;
+
+        return RecoverItemByItem(json, kind);
+    }
+
+    private static T? TryDeserialize<T>(string json) where T : class
+    {
+        try { return JsonSerializer.Deserialize<T>(json, JsonOptions); }
+        catch { return null; }
+    }
+
+    private static List<Preset> RecoverItemByItem(string json, PresetKind kind)
+    {
+        BackupCorrupted(json, kind);
+        try
+        {
+            using var doc = JsonDocument.Parse(json);
+            if (doc.RootElement.ValueKind != JsonValueKind.Array)
+                return new();
+
+            var presets = new List<Preset>();
+            foreach (var element in doc.RootElement.EnumerateArray())
+            {
+                try
+                {
+                    var preset = JsonSerializer.Deserialize<Preset>(element.GetRawText(), JsonOptions);
+                    if (preset != null) presets.Add(preset);
+                }
+                catch { }
+            }
+            return presets;
+        }
+        catch
+        {
+            return new();
+        }
+    }
+
+    private static void BackupCorrupted(string corruptedJson, PresetKind kind)
+    {
+        try
+        {
+            Directory.CreateDirectory(BaseDir);
+            File.WriteAllText(GetBackupPath(kind), corruptedJson);
+        }
+        catch { }
+    }
+
+    private static List<Preset> TryRecoverFromBackup(PresetKind kind)
+    {
+        try
+        {
+            var backupPath = GetBackupPath(kind);
+            if (!File.Exists(backupPath)) return new();
+            var json = File.ReadAllText(backupPath);
+            return ReadPresets(json, kind);
+        }
+        catch
+        {
+            return new();
+        }
     }
 
     public static void SavePreset(Preset preset)
@@ -45,14 +122,16 @@ public static class PresetStore
                 Directory.CreateDirectory(BaseDir);
                 var path = GetFilePath(preset.Kind);
                 var presets = File.Exists(path)
-                    ? JsonSerializer.Deserialize<List<Preset>>(File.ReadAllText(path), JsonOptions) ?? new()
+                    ? ReadPresets(File.ReadAllText(path), preset.Kind)
                     : new List<Preset>();
+
                 var existing = presets.FindIndex(p => p.Id == preset.Id);
                 if (existing >= 0)
                     presets[existing] = preset;
                 else
                     presets.Add(preset);
-                File.WriteAllText(path, JsonSerializer.Serialize(presets, JsonOptions));
+
+                WriteWrapper(path, presets);
             }
             catch { }
         }
@@ -66,12 +145,22 @@ public static class PresetStore
             {
                 var path = GetFilePath(kind);
                 if (!File.Exists(path)) return;
-                var presets = JsonSerializer.Deserialize<List<Preset>>(File.ReadAllText(path), JsonOptions) ?? new();
+                var presets = ReadPresets(File.ReadAllText(path), kind);
                 presets.RemoveAll(p => p.Id == id);
-                File.WriteAllText(path, JsonSerializer.Serialize(presets, JsonOptions));
+                WriteWrapper(path, presets);
             }
             catch { }
         }
+    }
+
+    private static void WriteWrapper(string path, List<Preset> presets)
+    {
+        var wrapper = new PresetListWrapper
+        {
+            SchemaVersion = 1,
+            Presets = presets
+        };
+        File.WriteAllText(path, JsonSerializer.Serialize(wrapper, JsonOptions));
     }
 
     public static Preset? GetPreset(string id, PresetKind kind)
