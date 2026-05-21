@@ -189,6 +189,7 @@ public class GenerationQueueStore
             if (!Enum.TryParse<GenerationQueueStatus>(s.Status, out var status)) continue;
             if (status != GenerationQueueStatus.Polling) continue;
             if (string.IsNullOrEmpty(s.TaskId)) continue;
+            if (s.HasFileData) continue;
 
             var item = new GenerationQueueItem
             {
@@ -230,7 +231,7 @@ public class GenerationQueueStore
         try
         {
             var active = _items
-                .Where(i => i.Status == GenerationQueueStatus.Polling && i.TaskId != null)
+                .Where(i => i.Status == GenerationQueueStatus.Polling && i.TaskId != null && !i.HasFileData)
                 .Select(i => new QueueItemSnapshot
                 {
                     Id = i.Id,
@@ -251,6 +252,7 @@ public class GenerationQueueStore
                     StatusHistory = i.StatusHistory,
                     BatchId = i.BatchId?.ToString(),
                     BatchName = i.BatchName,
+                    HasFileData = i.HasFileData,
                 })
                 .ToList();
 
