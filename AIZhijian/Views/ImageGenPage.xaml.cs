@@ -19,7 +19,25 @@ public partial class ImageGenPage : UserControl
     public ImageGenPage()
     {
         InitializeComponent();
-        Loaded += (_, _) => RefreshPresetList();
+        Loaded += (_, _) =>
+        {
+            RefreshPresetList();
+            TryApplyPendingParams();
+        };
+    }
+
+    private void TryApplyPendingParams()
+    {
+        var pending = GenerationQueueStore.PendingEditParams;
+        if (pending is not GptImageJobParams p) return;
+        GenerationQueueStore.PendingEditParams = null;
+        PromptBox.Text = p.Prompt;
+        SetComboByTag(ChannelBox, p.Channel);
+        SetComboByTag(AspectRatioBox, p.AspectRatio);
+        SetComboByTag(ResolutionBox, p.Resolution);
+        SetComboByTag(QualityBox, p.Quality);
+        PhotoRealCheck.IsChecked = p.PhotoReal;
+        StatusText.Text = "已从失败任务恢复参数，请重新选择参考图后提交";
     }
 
     private void ModeRadio_Checked(object sender, RoutedEventArgs e)

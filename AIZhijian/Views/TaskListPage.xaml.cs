@@ -204,6 +204,59 @@ public partial class TaskListPage : UserControl
             Refresh();
         }
     }
+
+    private void CopyError_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button btn && btn.Tag is string id)
+        {
+            var item = _queue.Items.FirstOrDefault(i => i.Id == id);
+            if (item?.ErrorMessage != null)
+                TryCopyToClipboard(item.ErrorMessage);
+        }
+    }
+
+    private void CopyPrompt_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button btn && btn.Tag is string id)
+        {
+            var item = _queue.Items.FirstOrDefault(i => i.Id == id);
+            if (!string.IsNullOrEmpty(item?.Summary))
+                TryCopyToClipboard(item.Summary);
+        }
+    }
+
+    private static void TryCopyToClipboard(string text)
+    {
+        try { Clipboard.SetText(text); }
+        catch { }
+    }
+
+    private void EditInGenerator_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button btn && btn.Tag is string id)
+        {
+            var item = _queue.Items.FirstOrDefault(i => i.Id == id);
+            if (item?.Params == null) return;
+
+            GenerationQueueStore.PendingEditParams = item.Params;
+
+            var tag = item.Kind switch
+            {
+                GenerationJobKind.GptImage => "ImageGen",
+                GenerationJobKind.Banana => "Banana",
+                GenerationJobKind.Seedance => "Seedance",
+                GenerationJobKind.Wan => "Wan",
+                GenerationJobKind.Veo => "Veo",
+                GenerationJobKind.Grok => "Grok",
+                _ => null
+            };
+
+            if (tag != null && Application.Current.MainWindow is MainWindow main)
+                main.NavigateTo(tag);
+            else
+                GenerationQueueStore.PendingEditParams = null;
+        }
+    }
 }
 
 public class InputDialog : Window

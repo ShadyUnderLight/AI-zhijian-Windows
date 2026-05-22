@@ -70,32 +70,48 @@
                                 <ItemsControl ItemsSource="{Binding Items}"
                                               Visibility="{Binding IsExpanded, Converter={StaticResource BoolToVisibility}}">
                                     <ItemsControl.ItemTemplate>
-                                        <DataTemplate>
-                                            <Grid Margin="0,2,0,2">
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="100"/>
-                                                    <ColumnDefinition Width="80"/>
-                                                    <ColumnDefinition Width="*"/>
-                                                    <ColumnDefinition Width="50"/>
-                                                    <ColumnDefinition Width="40"/>
-                                                    <ColumnDefinition Width="Auto"/>
-                                                    <ColumnDefinition Width="Auto"/>
-                                                </Grid.ColumnDefinitions>
-                                                <TextBlock Grid.Column="0" Text="{Binding Kind}" FontSize="12" VerticalAlignment="Center"/>
-                                                <TextBlock Grid.Column="1" Text="{Binding Status}" FontSize="12" VerticalAlignment="Center"/>
-                                                <TextBlock Grid.Column="2" Text="{Binding Summary}" FontSize="12" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Margin="0,0,8,0"/>
-                                                <TextBlock Grid.Column="3" Text="{Binding Elapsed}" FontSize="12" Foreground="{StaticResource TextSecondary}" VerticalAlignment="Center"/>
-                                                <TextBlock Grid.Column="4" FontSize="12" Foreground="{StaticResource TextSecondary}" VerticalAlignment="Center"
+                                    <DataTemplate>
+                                        <Grid Margin="0,2,0,2">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="80"/>
+                                                <ColumnDefinition Width="70"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="45"/>
+                                                <ColumnDefinition Width="30"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Grid.Column="0" Text="{Binding Kind}" FontSize="12" VerticalAlignment="Center"/>
+                                            <TextBlock Grid.Column="1" Text="{Binding Status}" FontSize="12" VerticalAlignment="Center"/>
+                                            <TextBlock Grid.Column="2" Text="{Binding Summary}" FontSize="12" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Margin="0,0,6,0"/>
+                                            <TextBlock Grid.Column="3" Text="{Binding Elapsed}" FontSize="12" Foreground="{StaticResource TextSecondary}" VerticalAlignment="Center"/>
+                                            <TextBlock Grid.Column="4" FontSize="12" Foreground="{StaticResource TextSecondary}" VerticalAlignment="Center"
                                                            Visibility="{Binding RetryCount, Converter={StaticResource PositiveIntToVisibility}}">
                                                     <Run Text="{Binding RetryCount, StringFormat='x{0}'}" />
                                                 </TextBlock>
-                                                <TextBlock Grid.Column="5" Text="{Binding ErrorMessage}" FontSize="12" Foreground="{StaticResource DangerBrush}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="200" Margin="0,0,8,0"/>
-                                                <Button Grid.Column="6" Content="重试" FontSize="12"
+                                            <TextBlock Grid.Column="5" Text="{Binding ErrorMessage}" FontSize="12" Foreground="{StaticResource DangerBrush}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="120" Margin="0,0,4,0"/>
+                                            <Button Grid.Column="6" Content="复制错误" FontSize="11"
+                                                        Visibility="{Binding ErrorMessage, Converter={StaticResource StringNotEmptyToVisibility}}"
+                                                        Style="{StaticResource SecondaryButton}" Padding="6,1"
+                                                        Click="CopyError_Click" Tag="{Binding Id}"/>
+                                            <Button Grid.Column="7" Content="复制 Prompt" FontSize="11"
+                                                        Visibility="{Binding Summary, Converter={StaticResource StringNotEmptyToVisibility}}"
+                                                        Style="{StaticResource SecondaryButton}" Padding="6,1"
+                                                        Click="CopyPrompt_Click" Tag="{Binding Id}"/>
+                                            <StackPanel Grid.Column="8" Orientation="Horizontal">
+                                                <Button Content="重试" FontSize="12"
                                                         Visibility="{Binding ShowRetry, Converter={StaticResource BoolToVisibility}}"
                                                         Style="{StaticResource SecondaryButton}" Padding="8,2"
                                                         Click="RetryItem_Click" Tag="{Binding Id}"/>
-                                            </Grid>
-                                        </DataTemplate>
+                                                <Button Content="去编辑" FontSize="12"
+                                                        Visibility="{Binding ShowEdit, Converter={StaticResource BoolToVisibility}}"
+                                                        Style="{StaticResource SecondaryButton}" Padding="8,2" Margin="4,0,0,0"
+                                                        Click="EditInGenerator_Click" Tag="{Binding Id}"/>
+                                            </StackPanel>
+                                        </Grid>
+                                    </DataTemplate>
                                     </ItemsControl.ItemTemplate>
                                 </ItemsControl>
                             </StackPanel>

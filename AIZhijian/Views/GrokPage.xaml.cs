@@ -20,7 +20,26 @@ public partial class GrokPage : UserControl
     public GrokPage()
     {
         InitializeComponent();
-        Loaded += (_, _) => RefreshPresetList();
+        Loaded += (_, _) =>
+        {
+            RefreshPresetList();
+            TryApplyPendingParams();
+        };
+    }
+
+    private void TryApplyPendingParams()
+    {
+        var pending = GenerationQueueStore.PendingEditParams;
+        if (pending is not GrokJobParams p) return;
+        GenerationQueueStore.PendingEditParams = null;
+        PromptBox.Text = p.Prompt;
+        SetComboByTag(ChannelBox, p.Channel);
+        SetComboByTag(ModeBox, p.Mode);
+        SetComboByTag(AspectRatioBox, p.AspectRatio);
+        SetComboByTag(ResolutionBox, p.Resolution);
+        if (!string.IsNullOrEmpty(p.Duration))
+            SetComboByTag(DurationBox, p.Duration);
+        StatusText.Text = "已从失败任务恢复参数，请重新选择文件后提交";
     }
 
     private string GetTag(ComboBox cb) => (cb.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? "";
