@@ -183,7 +183,8 @@ public class GenerationQueueItem
     }
 }
 
-public bool ShowRetry => Status == GenerationQueueStatus.Failed && RetryValidationError == null;
+    public bool ShowRetry => Status == GenerationQueueStatus.Failed && RetryValidationError == null;
+    public bool ShowEdit => Status == GenerationQueueStatus.Failed && Params != null && HasFileData;
 
 private static bool IsEmptyData(byte[]? data) => data == null || data.Length == 0;
 

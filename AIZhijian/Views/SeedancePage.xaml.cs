@@ -27,7 +27,24 @@ public partial class SeedancePage : UserControl
         {
             RefreshPresetList();
             await LoadVirtualAssetsAsync();
+            TryApplyPendingParams();
         };
+    }
+
+    private void TryApplyPendingParams()
+    {
+        var pending = GenerationQueueStore.PendingEditParams;
+        if (pending is not SeedanceJobParams p) return;
+        GenerationQueueStore.PendingEditParams = null;
+        PromptBox.Text = p.Prompt;
+        SetComboByTag(ModeBox, p.Mode);
+        SetComboByTag(ModelBox, p.Model);
+        SetComboByTag(RatioBox, p.Ratio);
+        SetComboByTag(ResolutionBox, p.Resolution);
+        DurationBox.Text = p.Duration.ToString();
+        CountBox.Text = p.Count.ToString();
+        AudioCheck.IsChecked = p.GenerateAudio;
+        StatusText.Text = "已从失败任务恢复参数，请重新选择素材后提交";
     }
 
     private string GetTag(ComboBox cb) => (cb.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? "";

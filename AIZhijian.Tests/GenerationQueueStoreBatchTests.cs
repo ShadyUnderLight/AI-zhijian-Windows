@@ -778,4 +778,60 @@ public class GenerationQueueStoreBatchTests : IDisposable
 
         Assert.Contains(batchId, store2.PausedBatches);
     }
+
+    [Fact]
+    public void ShowEdit_true_when_failed_with_file_data()
+    {
+        var item = new GenerationQueueItem
+        {
+            Kind = GenerationJobKind.GptImage,
+            Status = GenerationQueueStatus.Failed,
+            Params = new GptImageJobParams
+            {
+                Prompt = "test",
+                ReferenceImages = { new FileRef { Data = new byte[] { 1 }, Name = "r.jpg", Mime = "image/jpeg" } }
+            }
+        };
+        Assert.True(item.ShowEdit);
+    }
+
+    [Fact]
+    public void ShowEdit_false_when_params_null()
+    {
+        var item = new GenerationQueueItem
+        {
+            Kind = GenerationJobKind.GptImage,
+            Status = GenerationQueueStatus.Failed,
+            Params = null
+        };
+        Assert.False(item.ShowEdit);
+    }
+
+    [Fact]
+    public void ShowEdit_false_when_no_file_data()
+    {
+        var item = new GenerationQueueItem
+        {
+            Kind = GenerationJobKind.GptImage,
+            Status = GenerationQueueStatus.Failed,
+            Params = new GptImageJobParams { Prompt = "test" }
+        };
+        Assert.False(item.ShowEdit);
+    }
+
+    [Fact]
+    public void ShowEdit_false_when_not_failed()
+    {
+        var item = new GenerationQueueItem
+        {
+            Kind = GenerationJobKind.GptImage,
+            Status = GenerationQueueStatus.Pending,
+            Params = new GptImageJobParams
+            {
+                Prompt = "test",
+                ReferenceImages = { new FileRef { Data = new byte[] { 1 }, Name = "r.jpg", Mime = "image/jpeg" } }
+            }
+        };
+        Assert.False(item.ShowEdit);
+    }
 }

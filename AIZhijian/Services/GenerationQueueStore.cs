@@ -7,6 +7,8 @@ namespace AIZhijian.Services;
 public class GenerationQueueStore
 {
     private readonly ApiService _api;
+
+    public static JobParams? PendingEditParams { get; set; }
     private readonly GenerationTaskExecutor _executor;
     private readonly List<GenerationQueueItem> _items = new();
     private CancellationTokenSource? _processCts;

@@ -44,24 +44,27 @@ public partial class MainWindow : Window
         });
     }
 
+    public void NavigateTo(string tag)
+    {
+        ContentArea.Content = tag switch
+        {
+            "Dashboard" => new DashboardPage(),
+            "ImageGen" => new ImageGenPage(),
+            "Banana" => new BananaPage(),
+            "Seedance" => new SeedancePage(),
+            "Wan" => new WanPage(),
+            "Veo" => new VeoPage(),
+            "Grok" => new GrokPage(),
+            "TaskList" => new TaskListPage(),
+            "WorksGallery" => new WorksGalleryPage(),
+            _ => ContentArea.Content
+        };
+    }
+
     private void Nav_Click(object sender, RoutedEventArgs e)
     {
         if (sender is Button btn && btn.Tag is string tag)
-        {
-            ContentArea.Content = tag switch
-            {
-                "Dashboard" => new DashboardPage(),
-                "ImageGen" => new ImageGenPage(),
-                "Banana" => new BananaPage(),
-                "Seedance" => new SeedancePage(),
-                "Wan" => new WanPage(),
-                "Veo" => new VeoPage(),
-                "Grok" => new GrokPage(),
-                "TaskList" => new TaskListPage(),
-                "WorksGallery" => new WorksGalleryPage(),
-                _ => ContentArea.Content
-            };
-        }
+            NavigateTo(tag);
     }
 
     private void Settings_Click(object sender, RoutedEventArgs e) => ContentArea.Content = new SettingsPage();

@@ -16,7 +16,21 @@ public partial class BananaPage : UserControl
     public BananaPage()
     {
         InitializeComponent();
-        Loaded += (_, _) => RefreshPresetList();
+        Loaded += (_, _) =>
+        {
+            RefreshPresetList();
+            TryApplyPendingParams();
+        };
+    }
+
+    private void TryApplyPendingParams()
+    {
+        var pending = GenerationQueueStore.PendingEditParams;
+        if (pending is not BananaJobParams p) return;
+        GenerationQueueStore.PendingEditParams = null;
+        PromptBox.Text = p.Prompt;
+        SetComboByTag(ProviderBox, p.Provider);
+        StatusText.Text = "已从失败任务恢复参数，请重新选择参考图后提交";
     }
 
     private void ModeRadio_Checked(object sender, RoutedEventArgs e)

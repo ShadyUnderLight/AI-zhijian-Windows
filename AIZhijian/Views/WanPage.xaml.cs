@@ -20,11 +20,30 @@ public partial class WanPage : UserControl
     public WanPage()
     {
         InitializeComponent();
-        Loaded += (_, _) => RefreshPresetList();
+        Loaded += (_, _) =>
+        {
+            RefreshPresetList();
+            TryApplyPendingParams();
+        };
+    }
+
+    private void TryApplyPendingParams()
+    {
+        var pending = GenerationQueueStore.PendingEditParams;
+        if (pending is not WanJobParams p) return;
+        GenerationQueueStore.PendingEditParams = null;
+        PromptBox.Text = p.Prompt;
+        SetComboByTag(ModeBox, p.Mode);
+        WidthBox.Text = p.Width.ToString();
+        HeightBox.Text = p.Height.ToString();
+        SecondsBox.Text = p.Seconds.ToString();
+        Enable48GCheck.IsChecked = p.Enable48G;
+        StatusText.Text = "已从失败任务恢复参数，请重新选择图片后提交";
     }
 
     private void ModeBox_Changed(object sender, SelectionChangedEventArgs e)
     {
+        if (!IsLoaded) return;
         var isImage = ((sender as ComboBox)?.SelectedItem as ComboBoxItem)?.Tag?.ToString() == "image";
         ImagePickerPanel.Visibility = isImage ? Visibility.Visible : Visibility.Collapsed;
         FramePickerPanel.Visibility = isImage ? Visibility.Collapsed : Visibility.Visible;

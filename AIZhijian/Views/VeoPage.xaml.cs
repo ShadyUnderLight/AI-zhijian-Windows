@@ -18,8 +18,29 @@ public partial class VeoPage : UserControl
     public VeoPage()
     {
         InitializeComponent();
-        PopulateChannels();
-        Loaded += (_, _) => RefreshPresetList();
+        Loaded += (_, _) =>
+        {
+            RefreshPresetList();
+            RefreshModels();
+            TryApplyPendingParams();
+        };
+    }
+
+    private void TryApplyPendingParams()
+    {
+        var pending = GenerationQueueStore.PendingEditParams;
+        if (pending is not VeoJobParams p) return;
+        GenerationQueueStore.PendingEditParams = null;
+        PromptBox.Text = p.Prompt;
+        NegPromptBox.Text = p.NegativePrompt ?? "";
+        AudioCheckBox.IsChecked = p.GenerateAudio;
+        SetComboByTag(ChannelBox, p.Channel);
+        SetComboByTag(ModelBox, p.Model);
+        SetComboByTag(ModeBox, p.Mode);
+        SetComboByTag(ResolutionBox, p.Resolution);
+        if (!string.IsNullOrEmpty(p.Duration))
+            SetComboByTag(DurationBox, p.Duration);
+        StatusText.Text = "已从失败任务恢复参数，请重新选择文件后提交";
     }
 
     private string GetTag(ComboBox cb) => (cb.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? "";
@@ -33,10 +54,23 @@ public partial class VeoPage : UserControl
         ChannelBox.SelectedIndex = 0;
     }
 
-    private void ChannelChanged(object s, SelectionChangedEventArgs e) => RefreshModels();
-    private void ModelChanged(object s, SelectionChangedEventArgs e) => RefreshModes();
+    private void ChannelChanged(object s, SelectionChangedEventArgs e)
+    {
+        if (!IsLoaded) return;
+        RefreshModels();
+    }
 
-    private void ModeChanged(object s, SelectionChangedEventArgs e) => RefreshUI();
+    private void ModelChanged(object s, SelectionChangedEventArgs e)
+    {
+        if (!IsLoaded) return;
+        RefreshModes();
+    }
+
+    private void ModeChanged(object s, SelectionChangedEventArgs e)
+    {
+        if (!IsLoaded) return;
+        RefreshUI();
+    }
 
     private void RefreshModels()
     {
